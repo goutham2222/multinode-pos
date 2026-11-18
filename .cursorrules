@@ -1,0 +1,60 @@
+# Strict Git Workflow & Development Rules for MultiNode POS
+
+## Universal Error & Defect Logging Protocol
+- The agent must maintain `DEBUG_LOG.md` in the project root as a permanent record of all bugs, compile errors, runtime issues, and UI/UX defects resolved.
+- Whenever an issue is identified and fixed, append a new entry to `DEBUG_LOG.md` sequentially (`[ERR-001]`, `[ERR-002]`, etc.) using this exact structure:
+  - `[ERR-XXX] <Descriptive Title>`
+    - **Timestamp:** `<Current Date or Phase>`
+    - **Component:** `<File path(s) involved>`
+    - **Technical Issue:** `<Technical root cause or broken error behavior>`
+    - **Resolution:** `<Exact code / styles fix implemented>`
+    - **In Plain English:** `<Clear, accessible summary of what broke and how it was fixed>`
+- Never overwrite existing entries; always append.
+
+---
+
+## 1. Local-First File Persistence & User Review Gate (CRITICAL)
+- **Save Before Stage:** Always ensure all edits are completely flushed and saved to local disk before running any verification, build checks, or git operations.
+- **Do Not Prematurely Commit:** The agent MUST NOT stage (`git add`), commit (`git commit`), or push (`git push`) changes autonomously while generating solutions.
+- **Strict User Review Gate:** All code and documentation changes must remain pending in the working tree until the user reviews and clicks "Accept All".
+- Only after the user confirms acceptance or explicitly directs git progression should verification, staging, committing, and pushing proceed.
+
+---
+
+## 2. Commit Message Prefixes & Conventions
+All commits must strictly use one of the following conventional prefixes based on the nature of the change:
+- `feat:` — New functional features, APIs, components, or major capabilities.
+- `fix:` — Bug fixes, syntax corrections, type repairs, runtime error resolutions.
+- `tweak:` — Small layout, styling, configuration adjustments, or non-breaking refinements.
+- `copy:` — Text updates, labels, typography revisions, or copywriting changes.
+- `docs:` — Documentation additions or updates in README, guides, or markdown docs.
+
+---
+
+## 3. Git Lifecycle Execution (Post-Acceptance Only)
+- Once changes are accepted by the user:
+  - Stage modified files with `git add .` (strictly respecting `.gitignore` exclusions).
+  - Create atomic, descriptive commit messages adhering to the conventional prefixes above.
+  - Push directly to the remote branch (`git push origin <branch>`).
+
+---
+
+## 4. Phased Milestone Isolation (Sequential Execution)
+- Do NOT implement database layers all at once. Work strictly in sequential phases:
+  1. Base Schema (`structure.sql`)
+  2. Data Extraction & Cleansing (`etl.sql`)
+  3. Views & Materialized Views (`views.sql`)
+  4. Stored Procedures & Alterations (`proc.sql`)
+  5. Business Triggers & Constraints (`trig.sql`)
+  6. Galera Multi-Master Replication Configuration
+  7. Backend API (FastAPI) & Frontend UI (React)
+  8. NoSQL Aggregation (`json.sql` & MongoDB)
+- Do NOT jump ahead to future phases until the user reviews, executes, and confirms data validation for the current milestone.
+
+---
+
+## 5. Code Quality & Standards
+- **Python 3.11+:** Strict type hints, Pydantic v2 schemas for request/response validation, parameterized/prepared statements for all raw SQL execution.
+- **TypeScript / React:** Strict typechecking (`strict: true`), avoid `any`, handle loading/empty/error states explicitly.
+- **Clean Architecture:** Clear separation between `/backend` (FastAPI / MariaDB / MongoDB) and `/frontend` (React / Vite or Next.js).
+- **Ignore Sensitive / Ephemeral Files:** Never commit raw CSV dumps, cache directories (`__pycache__/`, `node_modules/`, `.venv/`), environment secrets (`.env`), or local temporary logs.

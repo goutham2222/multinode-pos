@@ -1,0 +1,7 @@
+# Placeholder to preserve data/exported_json directory structure in git.
+# Exported JSON aggregates for Phase 8 MongoDB ingestion will reside here:
+# - cust1.json
+# - prod.json
+# - ord.json
+# - cust2.json
+

@@ -1,0 +1,8 @@
+# Placeholder to preserve data/raw directory structure in git.
+# Place raw CSV files here:
+# - customers.csv
+# - orders.csv
+# - products.csv
+# - orderlines.csv
+# - TAXRATES.csv
+
