@@ -53,44 +53,68 @@ multinode-pos/
 
 ---
 
-## 🚀 Getting Started (Milestone 0)
+## 🚀 Deployment Runbook
 
-### 1. Place Source CSV Datasets
-Copy your 5 raw CSV files directly into `data/raw/`:
-- `data/raw/customers.csv`
-- `data/raw/orders.csv`
-- `data/raw/products.csv`
-- `data/raw/orderlines.csv`
-- `data/raw/TAXRATES.csv`
+### Phase 1: Cloud Provisioning & Host Initialization (Azure)
 
-### 2. Configure Environment Files
-Clone the template files:
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-```
+1. **Authenticate with Azure CLI**:
+   ```bash
+   az login
+   ```
 
-### 3. Azure Cloud Provisioning (Azure for Students)
-Authenticate with Azure CLI:
-```bash
-az login
-```
+2. **Check Available Regions & VM Sizes**:
+   ```bash
+   ./infra/azure/check_available_regions.sh
+   ```
 
-Provision the network infrastructure and primary node:
-```bash
-# 1. Provision VNet, Subnet, and NSGs
-./infra/azure/01_network_setup.sh
+3. **Provision Network Infrastructure (VNet, Subnet, NSGs)**:
+   ```bash
+   export LOCATION="eastus" # or your chosen region
+   ./infra/azure/01_network_setup.sh
+   ```
 
-# 2. Deploy Node 1 VM (Standard_B1s, Static Private IP 10.0.1.4)
-./infra/azure/02_provision_primary_vm.sh
-```
+4. **Deploy Primary Virtual Machine (Node 1)**:
+   ```bash
+   ./infra/azure/02_provision_primary_vm.sh
+   ```
+   *(Deploys `vm-pos-node1`, static private IP `10.0.1.4`, public IP assigned dynamically).*
 
-Initialize the host (Swap & MariaDB setup):
-```bash
-# Copy and run host initialization on Node 1:
-scp infra/scripts/host_setup.sh azureuser@<NODE1_PUBLIC_IP>:~/
-ssh azureuser@<NODE1_PUBLIC_IP> "bash ~/host_setup.sh"
-```
+5. **Initialize Host (2GB Swap, MariaDB & Cluster Tools)**:
+   ```bash
+   export NODE1_IP="<NODE1_PUBLIC_IP>"
+   scp -i ~/.ssh/id_rsa infra/scripts/host_setup.sh azureuser@$NODE1_IP:~/
+   ssh azureuser@$NODE1_IP "bash ~/host_setup.sh"
+   ```
+
+6. **Upload Staging CSV Datasets**:
+   ```bash
+   ssh azureuser@$NODE1_IP "mkdir -p ~/data/raw"
+   scp data/raw/*.csv azureuser@$NODE1_IP:~/data/raw/
+   ```
+
+---
+
+### Phase 2: Relational Data Layer & ETL Pipeline
+
+1. **Deploy Database SQL Modules to Node 1**:
+   ```bash
+   scp -r database azureuser@$NODE1_IP:~/
+   ```
+
+2. **Execute Schema Creation & Automated ETL**:
+   ```bash
+   ssh azureuser@$NODE1_IP "bash ~/database/02_etl/run_phase2.sh"
+   ```
+
+3. **Expected Validation Metrics**:
+   | Table | Verified Record Count | Cleansing & Integrity Operations Performed |
+   | :--- | :--- | :--- |
+   | **`City`** | **7,037** | Distinct normalized `(Zip, City, State)` extraction |
+   | **`Customer`** | **7,988** | `STR_TO_DATE` on birthdates, `DECIMAL(5) ZEROFILL` padding, blank strings to `NULL` |
+   | **`Product`** | **4,023** | Stripped currency (`$`) and commas, cast to `DECIMAL(6,2)` |
+   | **`Order`** | **25,897** | Date coercion, `dateShipped` set to `NULL` for 1,747 cancelled orders |
+   | **`OrderLine`** | **77,396** | 155,233 raw line items aggregated into composite PKs with `Quantity = COUNT(*)` |
+   | **`PriceHistory`** | **0** | Baseline schema instantiated for Phase 5 price auditing triggers |
 
 ---
 
