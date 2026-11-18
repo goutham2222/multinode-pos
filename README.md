@@ -118,6 +118,28 @@ multinode-pos/
 
 ---
 
+### Phase 3: Views, Materialized Views & Indexes
+
+1. **Deploy Phase 3 Views & Indexes Module to Node 1**:
+   ```bash
+   scp -r database/03_views azureuser@$NODE1_IP:~/database/
+   ```
+
+2. **Execute Phase 3 Runner**:
+   ```bash
+   ssh azureuser@$NODE1_IP "bash ~/database/03_views/run_phase3.sh"
+   ```
+
+3. **Objects Created**:
+   - `v_CustomerNames`: Alphabetically sorted by `LastName`, then `FirstName`.
+   - `v_Customers`: Full normalized address joined with `City` (`customer_number`, `street1`, `street2`, `City`, `ST`, `zip_code`).
+   - `v_ProductBuyers`: Aggregate comma-separated list of distinct customer names and IDs per product (handles products with 0 buyers).
+   - `v_CustomerPurchases`: Aggregate pipe-separated (`|`) list of distinct products purchased per customer.
+   - `mv_ProductBuyers` & `mv_CustomerPurchases`: Dedicated snapshot tables with Primary Keys for instant reads.
+   - `idx_CustomerEmail` & `idx_ProductName`: B-Tree indexes on `Customer(Email)` and `Product(Name)`.
+
+---
+
 ## 🚦 Phased Sequential Milestones
 
 | Milestone | Phase | Description | Deliverables |
