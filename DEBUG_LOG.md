@@ -34,4 +34,11 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Updated `test_transactions.sql` to use `@@tx_isolation` (or fallback expression) to ensure full compatibility with MariaDB 10.6+.
 - **In Plain English:** MySQL 8 and MariaDB 10 use slightly different variable names to check the transaction isolation level. We updated the SQL script to MariaDB's variable name (`@@tx_isolation`) so the transaction tests execute cleanly.
 
+### [ERR-005] TaxRegionName Column Overflow in TaxRates Table
+- **Timestamp:** 2026-11-17 / Phase 5 (Triggers & Business Constraints)
+- **Component:** `database/05_triggers/trig.sql`
+- **Technical Issue:** `trig.sql` failed during `TaxRates` ingestion with `ERROR 1406 (22001) at line 48: Data too long for column 'TaxRegionName' at row 24123`. `TaxRegionName` was typed as `VARCHAR(64)`, whereas complex municipal improvement district names in `TAXRATES.csv` reach up to 83 characters.
+- **Resolution:** Modified `TaxRates.TaxRegionName` column definition from `VARCHAR(64)` to `VARCHAR(128)` to accommodate long municipal district descriptions.
+- **In Plain English:** Certain city and county tax district names in the CSV exceeded 64 characters (up to 83 characters). We expanded the table column to 128 characters so all records load smoothly.
+
 

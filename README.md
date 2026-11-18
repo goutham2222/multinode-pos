@@ -161,6 +161,29 @@ multinode-pos/
 
 ---
 
+### Phase 5: Automated Business Triggers & Constraints
+
+1. **Deploy Phase 5 Triggers Module to Node 1**:
+   ```bash
+   scp -r database/05_triggers azureuser@$NODE1_IP:~/database/
+   ```
+
+2. **Execute Phase 5 Runner**:
+   ```bash
+   ssh azureuser@$NODE1_IP "bash ~/database/05_triggers/run_phase5.sh"
+   ```
+
+3. **Operations & Deliverables**:
+   - `TaxRates` table ingested from `TAXRATES.csv` (41,010 clean US zip tax rates, `DECIMAL(7,6)` precision).
+   - Schema evolution: `PriceHistory.ChangeID` (`AUTO_INCREMENT`), `Order.OrderSubtotal`, `Order.SalesTax`, `Order.OrderTotal` (virtual: `OrderSubtotal + SalesTax`).
+   - Trigger `trig_ProductPriceAudit`: Logs historical price adjustments strictly when `OLD.CurrentPrice <> NEW.CurrentPrice`.
+   - Trigger `trig_OrderLineBeforeInsert`: Defaults `UnitPrice` to `Product.CurrentPrice` and `Quantity` to 1.
+   - Triggers `trig_OrderLineInventory*`: Decrements/increments `Product.QtyOnHand` atomically; signals error 45000 if requested quantity exceeds stock.
+   - Triggers `trig_OrderLineSyncTotals*`: Dynamically recalculates `OrderSubtotal` and `SalesTax` via Customer Zip tax lookup with half-penny rounding.
+   - Trigger `trig_EagerMVRefreshInsert`: Selectively refreshes affected rows in `mv_ProductBuyers` and `mv_CustomerPurchases` in real-time.
+
+---
+
 ## 🚦 Phased Sequential Milestones
 
 | Milestone | Phase | Description | Deliverables |
