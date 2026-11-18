@@ -140,6 +140,27 @@ multinode-pos/
 
 ---
 
+### Phase 4: Stored Procedures & Transaction Management
+
+1. **Deploy Phase 4 Routines Module to Node 1**:
+   ```bash
+   scp -r database/04_routines azureuser@$NODE1_IP:~/database/
+   ```
+
+2. **Execute Phase 4 Runner**:
+   ```bash
+   ssh azureuser@$NODE1_IP "bash ~/database/04_routines/run_phase4.sh"
+   ```
+
+3. **Operations & Deliverables**:
+   - Schema alterations: `OrderLine.UnitPrice`, `OrderLine.LineTotal` (virtual generated column: `Quantity * UnitPrice`), `Order.OrderTotal`, dropped `Customer.Phone`.
+   - Stored procedure `proc_FillUnitPrice`: Populates `NULL` `UnitPrice` from `Product.CurrentPrice` without modifying existing values.
+   - Stored procedure `proc_FillOrderTotal`: Aggregates `SUM(LineTotal)` from `OrderLine` into `Order.OrderTotal`.
+   - Stored procedure `proc_RefreshMV`: Transaction-safe materialized view refresh routine utilizing transactional `DELETE/INSERT` to avoid implicit DDL commits.
+   - Comprehensive ACID transaction test suite: Rollback integrity verification, commit persistence, and parameterized prepared statements.
+
+---
+
 ## 🚦 Phased Sequential Milestones
 
 | Milestone | Phase | Description | Deliverables |

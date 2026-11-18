@@ -27,4 +27,11 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Updated `check_available_regions.sh` to correlate restrictions strictly against the specific target location, filtered out non-physical staging regions using `az account list-locations`, and grouped standard public regions clearly.
 - **In Plain English:** The region check script mistakenly flagged all major regions as restricted because of a single location's restriction. We fixed the script to map restrictions to specific regions accurately and filter out Microsoft internal test regions, displaying true available regions like East US 2, Central US, or West US.
 
+### [ERR-004] MariaDB System Variable Syntax (transaction_isolation vs tx_isolation)
+- **Timestamp:** 2026-11-17 / Phase 4 (Stored Procedures & Transactions)
+- **Component:** `database/04_routines/test_transactions.sql`
+- **Technical Issue:** `test_transactions.sql` failed with `ERROR 1193 (HY000) at line 13: Unknown system variable 'transaction_isolation'`. MariaDB 10.6 uses the standard system variable `@@tx_isolation` rather than the MySQL 8.0 `@@transaction_isolation` naming convention.
+- **Resolution:** Updated `test_transactions.sql` to use `@@tx_isolation` (or fallback expression) to ensure full compatibility with MariaDB 10.6+.
+- **In Plain English:** MySQL 8 and MariaDB 10 use slightly different variable names to check the transaction isolation level. We updated the SQL script to MariaDB's variable name (`@@tx_isolation`) so the transaction tests execute cleanly.
+
 
