@@ -221,7 +221,12 @@ multinode-pos/
    ssh azureuser@$NODE3_IP "bash ~/database/06_cluster/join_peer.sh 3"
    ```
 
-5. **Run Multi-Master Replication Test Suite**:
+5. **Enable Strict Causal Consistency (wsrep_sync_wait = 7)**:
+   ```bash
+   ./database/06_cluster/enable_strict_consistency.sh $NODE1_IP $NODE2_IP $NODE3_IP
+   ```
+
+6. **Run Multi-Master Replication Test Suite**:
    ```bash
    ./database/06_cluster/test_multimaster.sh $NODE1_IP $NODE2_IP $NODE3_IP
    ```

@@ -23,6 +23,9 @@ wsrep_cluster_address="gcomm://10.0.1.4,10.0.1.5,10.0.1.6"
 # State Snapshot Transfer (SST) Method
 wsrep_sst_method=rsync
 
+# Causal Consistency Bitmask (1=READ, 2=UPDATE/DELETE, 4=INSERT/REPLACE -> 7=Strict Causal Consistency)
+wsrep_sync_wait=7
+
 # Node Specific Identity
 wsrep_node_address="10.0.1.5"
 wsrep_node_name="node2"
