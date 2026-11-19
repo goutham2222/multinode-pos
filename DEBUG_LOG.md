@@ -41,4 +41,25 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Modified `TaxRates.TaxRegionName` column definition from `VARCHAR(64)` to `VARCHAR(128)` to accommodate long municipal district descriptions.
 - **In Plain English:** Certain city and county tax district names in the CSV exceeded 64 characters (up to 83 characters). We expanded the table column to 128 characters so all records load smoothly.
 
+### [ERR-006] macOS Bash 3.2 Incompatibility with Associative Arrays (declare -A)
+- **Timestamp:** 2026-11-18 / Phase 6 (Galera Clustering)
+- **Component:** `infra/azure/03_provision_galera_peers.sh`
+- **Technical Issue:** Running `03_provision_galera_peers.sh` failed with `./infra/azure/03_provision_galera_peers.sh: line 19: declare: -A: invalid option`. macOS defaults to GNU Bash 3.2, which lacks support for associative arrays (`declare -A`, introduced in Bash 4.0).
+- **Resolution:** Replaced the associative array with a POSIX-compliant string list and standard parameter expansion (`${item%%:*}` and `${item##*:}`) compatible with Bash 3.2+, Zsh, and modern Linux shells.
+- **In Plain English:** macOS uses an older version of Bash that doesn't support dictionary arrays. We rewritten the loop syntax so the peer provisioning script works reliably on macOS without needing to upgrade system Bash.
+
+### [ERR-007] Azure for Students Regional Core Quota Exceeded for standardDASv4Family
+- **Timestamp:** 2026-11-18 / Phase 6 (Galera Clustering)
+- **Component:** `infra/azure/03_provision_galera_peers.sh`
+- **Technical Issue:** Provisioning `vm-pos-node3` failed with `(QuotaExceeded) Operation could not be completed as it results in exceeding approved standardDASv4Family Cores quota. Location: eastus, Current Limit: 4, Current Usage: 4, Additional Required: 2`. Azure for Students limits subscriptions to 4 vCPUs per specific VM family in a single region. Because Node 1 and Node 2 each use 2 vCPUs of `standardDASv4Family` (`Standard_D2as_v4`), deploying Node 3 with the same size requested 6 cores, breaching the limit.
+- **Resolution:** Updated `03_provision_galera_peers.sh` to allow per-node VM sizing. Set Node 3 to `Standard_D2s_v4` (Intel Xeon, 2 vCPU, 8 GB RAM, `standardDSv4Family`), which has 0/4 cores currently used in `eastus`. Made the script idempotent so it automatically skips already-running peer nodes (`vm-pos-node2`).
+- **In Plain English:** Azure for Students limits each VM family to 4 cores. Node 1 and Node 2 used all 4 cores of the AMD family (`D2as_v4`). We assigned Node 3 to the identical Intel family (`D2s_v4`), which has a separate 4-core allowance, letting all 3 nodes run with 2 vCPUs and 8 GB RAM.
+
+### [ERR-008] Unescaped Dollar Sign in test_multimaster.sh String
+- **Timestamp:** 2026-11-18 / Phase 6 (Galera Clustering)
+- **Component:** `database/06_cluster/test_multimaster.sh`
+- **Technical Issue:** Running `test_multimaster.sh` failed with `./database/06_cluster/test_multimaster.sh: line 63: $9: unbound variable`. Because `set -u` is enabled, bash evaluated `$99.95` as the 9th shell argument (`$9`), which was unset.
+- **Resolution:** Escaped literal dollar signs (`\$99.95` and `\$149.95`) in informational `echo` statements.
+- **In Plain English:** The test script tried to read `$99.95` as a shell variable instead of text. We escaped the dollar signs so bash prints the currency values properly.
+
 

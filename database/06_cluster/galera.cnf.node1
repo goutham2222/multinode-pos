@@ -1,0 +1,28 @@
+# ==============================================================================
+# MultiNode POS: Galera Configuration - Node 1 (vm-pos-node1)
+# Private IP: 10.0.1.4
+# File: database/06_cluster/galera.cnf.node1
+# Destination: /etc/mysql/mariadb.conf.d/60-galera.cnf
+# ==============================================================================
+
+[mysqld]
+# Binary Log & Engine Requirements for Galera
+binlog_format=ROW
+default_storage_engine=InnoDB
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Replication Provider
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Cluster Definition
+wsrep_cluster_name="pos_galera_cluster"
+wsrep_cluster_address="gcomm://10.0.1.4,10.0.1.5,10.0.1.6"
+
+# State Snapshot Transfer (SST) Method
+wsrep_sst_method=rsync
+
+# Node Specific Identity
+wsrep_node_address="10.0.1.4"
+wsrep_node_name="node1"

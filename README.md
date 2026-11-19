@@ -184,6 +184,50 @@ multinode-pos/
 
 ---
 
+### Phase 6: Galera Peer-to-Peer Multi-Master Replication
+
+1. **Deploy Peer Virtual Machines (Node 2 & Node 3)**:
+   ```bash
+   ./infra/azure/03_provision_galera_peers.sh
+   ```
+   *(Note down the public IP addresses for Node 2 and Node 3 from the terminal output).*
+
+2. **Initialize Host on Node 2 & Node 3**:
+   ```bash
+   export NODE2_IP="<NODE2_PUBLIC_IP>"
+   export NODE3_IP="<NODE3_PUBLIC_IP>"
+
+   scp infra/scripts/host_setup.sh azureuser@$NODE2_IP:~/
+   ssh azureuser@$NODE2_IP "bash ~/host_setup.sh"
+
+   scp infra/scripts/host_setup.sh azureuser@$NODE3_IP:~/
+   ssh azureuser@$NODE3_IP "bash ~/host_setup.sh"
+   ```
+
+3. **Bootstrap Cluster on Node 1 (10.0.1.4)**:
+   ```bash
+   scp -r database/06_cluster azureuser@$NODE1_IP:~/database/
+   ssh azureuser@$NODE1_IP "bash ~/database/06_cluster/bootstrap_node1.sh"
+   ```
+
+4. **Join Node 2 (10.0.1.5) & Node 3 (10.0.1.6)**:
+   ```bash
+   # Sync cluster scripts to Node 2 and join
+   scp -r database/06_cluster azureuser@$NODE2_IP:~/database/
+   ssh azureuser@$NODE2_IP "bash ~/database/06_cluster/join_peer.sh 2"
+
+   # Sync cluster scripts to Node 3 and join
+   scp -r database/06_cluster azureuser@$NODE3_IP:~/database/
+   ssh azureuser@$NODE3_IP "bash ~/database/06_cluster/join_peer.sh 3"
+   ```
+
+5. **Run Multi-Master Replication Test Suite**:
+   ```bash
+   ./database/06_cluster/test_multimaster.sh $NODE1_IP $NODE2_IP $NODE3_IP
+   ```
+
+---
+
 ## 🚦 Phased Sequential Milestones
 
 | Milestone | Phase | Description | Deliverables |
