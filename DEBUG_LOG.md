@@ -62,4 +62,26 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Escaped literal dollar signs (`\$99.95` and `\$149.95`) in informational `echo` statements.
 - **In Plain English:** The test script tried to read `$99.95` as a shell variable instead of text. We escaped the dollar signs so bash prints the currency values properly.
 
+### [ERR-009] Pydantic email-validator Dependency Requirement
+- **Timestamp:** 2026-11-19 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `backend/app/models/schemas.py`, `backend/requirements.txt`
+- **Technical Issue:** Importing `CustomerBase` utilizing `EmailStr` raised `ImportError: email-validator is not installed, run pip install 'pydantic[email]'`.
+- **Resolution:** Added `email-validator>=2.2.0` to `backend/requirements.txt` and installed it in the virtual environment.
+- **In Plain English:** Pydantic requires an external email validator package when validating email fields. We installed the package and added it to the project requirements.
+
+### [ERR-010] City Table Column Name Mismatch (CityName vs City)
+- **Timestamp:** 2026-11-19 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `backend/app/api/routes_customers.py`, `backend/app/services/query_service.py`
+- **Technical Issue:** Customer lookup queries referenced `ct.CityName`, failing with `pymysql.err.OperationalError: (1054, "Unknown column 'ct.CityName' in 'SELECT'")`. The base relational schema defines the column as `City`.
+- **Resolution:** Updated queries to alias `ct.City AS CityName` ensuring alignment with Pydantic response models and the database schema.
+- **In Plain English:** The code expected the city column to be named `CityName`, but the database table has it named `City`. We aliased it in the SQL query so the customer information loads without errors.
+
+### [ERR-011] DECIMAL(8,2) Overflow in Test Suite Stock Rollback Simulation
+- **Timestamp:** 2026-11-19 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `backend/tests/test_transactions.py`
+- **Technical Issue:** Simulating an over-stock order with `Quantity = 9999999` caused the virtual generated column `LineTotal DECIMAL(8,2)` (`Quantity * UnitPrice`) to exceed the column capacity ($999,999.99), raising MariaDB error `1264 ("Out of range value for column 'LineTotal'")` prior to the inventory trigger evaluation.
+- **Resolution:** Adjusted the test quantity to `500` (which exceeds the available stock of ~225 while keeping the line total within the decimal range), successfully verifying `trig_OrderLineInventoryInsert` and the resulting rollback.
+- **In Plain English:** Testing an out-of-stock order with 9 million items caused the total price calculation to overflow the database decimal column. We adjusted the test quantity to 500, which exceeds warehouse stock while staying within normal price limits, successfully triggering the stock warning and rollback.
+
+
 
