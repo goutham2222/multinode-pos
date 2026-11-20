@@ -21,10 +21,12 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
   const [newProductName, setNewProductName] = useState('');
   const [newProductPrice, setNewProductPrice] = useState('');
   const [newProductQty, setNewProductQty] = useState('');
+  const [addModalError, setAddModalError] = useState<string | null>(null);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [priceUpdateValue, setPriceUpdateValue] = useState('');
   const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceModalError, setPriceModalError] = useState<string | null>(null);
 
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryItem[]>([]);
@@ -54,15 +56,24 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAddModalError(null);
     try {
       const price = parseFloat(newProductPrice);
       const qty = parseInt(newProductQty, 10);
-      if (!newProductName || isNaN(price) || isNaN(qty)) {
-        setNotification({ type: 'error', message: 'Please enter valid product details.' });
+      if (!newProductName.trim()) {
+        setAddModalError('Please enter a product name.');
+        return;
+      }
+      if (isNaN(price) || price <= 0) {
+        setAddModalError('Invalid price: Price must be a positive number greater than $0.00.');
+        return;
+      }
+      if (isNaN(qty) || qty < 0) {
+        setAddModalError('Invalid quantity: Quantity must be 0 or greater.');
         return;
       }
 
-      const res = await api.createProduct({ Name: newProductName, CurrentPrice: price, QtyOnHand: qty }, targetNode);
+      const res = await api.createProduct({ Name: newProductName.trim(), CurrentPrice: price, QtyOnHand: qty }, targetNode);
       setNotification({
         type: 'success',
         message: `Created product #${res.product.ProductID} on ${res.node_executed?.name || 'cluster'}. Replicated to all nodes.`
@@ -71,19 +82,21 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
       setNewProductName('');
       setNewProductPrice('');
       setNewProductQty('');
+      setAddModalError(null);
       loadProducts();
     } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
+      setAddModalError(err.message || 'Failed to create product.');
     }
   };
 
   const handleUpdatePrice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    setPriceModalError(null);
     try {
       const newPrice = parseFloat(priceUpdateValue);
       if (isNaN(newPrice) || newPrice <= 0) {
-        setNotification({ type: 'error', message: 'Invalid price.' });
+        setPriceModalError('Invalid price: Price must be a positive number greater than $0.00.');
         return;
       }
 
@@ -93,9 +106,10 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
         message: `Updated Product #${selectedProduct.ProductID} price to $${newPrice.toFixed(2)}. Trigger 'trig_ProductPriceAudit' logged old price $${res.old_price.toFixed(2)} to PriceHistory.`
       });
       setShowPriceModal(false);
+      setPriceModalError(null);
       loadProducts();
     } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
+      setPriceModalError(err.message || 'Failed to update price.');
     }
   };
 
@@ -187,7 +201,10 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
             Filter
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setAddModalError(null);
+              setShowAddModal(true);
+            }}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-sm transition-all"
           >
             <Plus className="h-4 w-4" />
@@ -255,6 +272,7 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
                         onClick={() => {
                           setSelectedProduct(p);
                           setPriceUpdateValue(p.CurrentPrice.toString());
+                          setPriceModalError(null);
                           setShowPriceModal(true);
                         }}
                         className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs inline-flex items-center space-x-1.5 transition-colors"
@@ -346,10 +364,21 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
                   />
                 </div>
               </div>
+
+              {addModalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center space-x-2 text-xs font-semibold">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{addModalError}</span>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setAddModalError(null);
+                  }}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
                 >
                   Cancel
@@ -403,10 +432,21 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
                   />
                 </div>
               </div>
+
+              {priceModalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center space-x-2 text-xs font-semibold">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{priceModalError}</span>
+                </div>
+              )}
+
               <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowPriceModal(false)}
+                  onClick={() => {
+                    setShowPriceModal(false);
+                    setPriceModalError(null);
+                  }}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
                 >
                   Cancel
