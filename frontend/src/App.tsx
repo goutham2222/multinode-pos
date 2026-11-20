@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Navbar } from './components/layout/Navbar';
-import { ClusterHealthBar } from './components/layout/ClusterHealthBar';
+import { Sidebar } from './components/layout/Sidebar';
+import { Header } from './components/layout/Header';
 import { Terminal } from './components/pos/Terminal';
 import { Catalog } from './components/products/Catalog';
 import { OrdersExplorer } from './components/orders/OrdersExplorer';
@@ -18,7 +18,7 @@ export function App() {
 
   useEffect(() => {
     fetchClusterStatus();
-    const interval = setInterval(fetchClusterStatus, 15000); // Poll telemetry every 15s
+    const interval = setInterval(fetchClusterStatus, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -36,49 +36,42 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navigation */}
-      <Navbar
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-800 font-sans">
+      {/* Left Sidebar */}
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        targetNode={targetNode}
-        setTargetNode={setTargetNode}
-        nodes={nodes}
-        onRefresh={fetchClusterStatus}
-        loading={loadingCluster}
-      />
-
-      {/* Cluster Health Strip */}
-      <ClusterHealthBar
         nodes={nodes}
         quorumHealthy={quorumHealthy}
-        selectedNode={targetNode}
       />
 
-      {/* Main Tab Content */}
-      <main className="flex-1 pb-12">
-        {activeTab === 'pos' && <Terminal targetNode={targetNode} />}
-        {activeTab === 'products' && <Catalog targetNode={targetNode} />}
-        {activeTab === 'orders' && <OrdersExplorer targetNode={targetNode} />}
-        {activeTab === 'cluster' && (
-          <NodeVisualizer
-            nodes={nodes}
-            onRefresh={fetchClusterStatus}
-            loading={loadingCluster}
-          />
-        )}
-        {activeTab === 'security' && <SqlDemo targetNode={targetNode} />}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Minimal Top Header with Node Selector */}
+        <Header
+          activeTab={activeTab}
+          targetNode={targetNode}
+          setTargetNode={setTargetNode}
+          nodes={nodes}
+          onRefresh={fetchClusterStatus}
+          loading={loadingCluster}
+        />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 px-4 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>MultiNode POS — High-Availability Distributed Transaction Engine</span>
-          <span className="font-mono text-[11px] text-slate-600">
-            MariaDB Galera 3-Node Cluster | wsrep_sync_wait=7 (Strict CP) | Azure East US
-          </span>
-        </div>
-      </footer>
+        {/* Scrollable Working Workspace */}
+        <main className="flex-1 overflow-y-auto">
+          {activeTab === 'pos' && <Terminal targetNode={targetNode} />}
+          {activeTab === 'products' && <Catalog targetNode={targetNode} />}
+          {activeTab === 'orders' && <OrdersExplorer targetNode={targetNode} />}
+          {activeTab === 'cluster' && (
+            <NodeVisualizer
+              nodes={nodes}
+              onRefresh={fetchClusterStatus}
+              loading={loadingCluster}
+            />
+          )}
+          {activeTab === 'security' && <SqlDemo targetNode={targetNode} />}
+        </main>
+      </div>
     </div>
   );
 }

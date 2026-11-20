@@ -29,16 +29,10 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
 
     const startTime = performance.now();
     try {
-      // 1. Pick product 1, generate a unique price
       const testPrice = Math.round((499.00 + Math.random() * 50) * 100) / 100;
-
-      // 2. Write to origin node
       await api.updateProductPrice(1, testPrice, testOrigin);
-
-      // 3. Immediately read from target node (wsrep_sync_wait=7 ensures instant causal consistency)
       const targetRead = await api.getProduct(1, testTarget);
       const readPrice = Number(targetRead.product.CurrentPrice);
-
       const endTime = performance.now();
 
       setVerificationResult({
@@ -58,25 +52,25 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       {/* Cluster Header */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+      <div className="bg-white border border-slate-200/80 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
-          <div className="flex items-center space-x-2">
-            <Database className="h-6 w-6 text-emerald-400" />
-            <h2 className="text-lg font-bold text-slate-100">3-Node MariaDB Galera Multi-Master Topology</h2>
+          <div className="flex items-center space-x-2.5">
+            <Database className="h-6 w-6 text-emerald-600" />
+            <h2 className="text-lg font-bold text-slate-900">3-Node MariaDB Galera Multi-Master Topology</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Synchronous peer-to-peer active-active cluster deployed across Azure virtual machines in the <code>10.0.1.0/24</code> VNet.
+          <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Synchronous peer-to-peer active-active cluster across Azure virtual machines in the <code>10.0.1.0/24</code> VNet.
             Every node accepts both read and write transactions with multi-master certification.
           </p>
         </div>
 
         <button
           onClick={onRefresh}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg font-semibold flex items-center space-x-2 transition-colors self-start md:self-auto"
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center space-x-2 transition-colors self-start md:self-auto"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
           <span>Probe Telemetry</span>
         </button>
       </div>
@@ -86,109 +80,109 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
         {nodes.map((node) => (
           <div
             key={node.id}
-            className={`bg-slate-900 border rounded-xl p-5 shadow-sm transition-all ${
+            className={`bg-white border rounded-2xl p-6 shadow-xs transition-all ${
               node.online
-                ? 'border-slate-800 hover:border-emerald-500/40'
-                : 'border-rose-500/40'
+                ? 'border-slate-200/80 hover:border-emerald-300 hover:shadow-sm'
+                : 'border-rose-300'
             }`}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center space-x-2">
-                <Server className="h-5 w-5 text-emerald-400" />
-                <h3 className="font-bold text-sm text-slate-100">{node.name}</h3>
+                <Server className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-bold text-base text-slate-900">{node.name}</h3>
               </div>
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                   node.online
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
                 }`}
               >
                 {node.online ? 'Online' : 'Unreachable'}
               </span>
             </div>
 
-            <div className="mt-4 space-y-2.5 text-xs">
+            <div className="mt-4 space-y-3 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-400">Endpoint / IP:</span>
-                <span className="font-mono text-slate-200 font-medium">{node.host}</span>
+                <span className="text-slate-500 font-medium">Private IP:</span>
+                <span className="font-mono text-slate-900 font-bold">{node.host}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cluster Status:</span>
-                <span className="font-mono text-emerald-400 font-semibold">{node.cluster_status || 'N/A'}</span>
+                <span className="text-slate-500 font-medium">Cluster Status:</span>
+                <span className="font-mono text-emerald-700 font-bold">{node.cluster_status || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cluster Size:</span>
-                <span className="font-mono text-slate-200">{node.cluster_size ?? 0} Nodes</span>
+                <span className="text-slate-500 font-medium">Cluster Size:</span>
+                <span className="font-mono text-slate-800 font-semibold">{node.cluster_size ?? 0} Nodes</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Sync Wait Mask:</span>
-                <span className="font-mono text-emerald-300 font-bold bg-slate-950 px-1.5 py-0.5 rounded">
+                <span className="text-slate-500 font-medium">Sync Wait:</span>
+                <span className="font-mono text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                   wsrep_sync_wait = {node.sync_wait ?? 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Network Latency:</span>
-                <span className="font-mono text-slate-300">{node.ping_ms ? `${node.ping_ms} ms` : 'N/A'}</span>
+                <span className="text-slate-500 font-medium">Ping Roundtrip:</span>
+                <span className="font-mono text-slate-700 font-bold">{node.ping_ms ? `${node.ping_ms} ms` : 'N/A'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Local State:</span>
-                <span className="font-mono text-slate-300">{node.local_state || 'Synced'}</span>
+                <span className="text-slate-500 font-medium">Local State:</span>
+                <span className="font-mono text-slate-700 font-semibold">{node.local_state || 'Synced'}</span>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-              <span>Port 3306 (MariaDB)</span>
-              <span>Port 4567 (Galera WSREP)</span>
+            <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+              <span>Port 3306 (SQL)</span>
+              <span>Port 4567 (Galera)</span>
             </div>
           </div>
         ))}
       </div>
 
       {/* CAP Theorem Architecture Breakdown */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-sm">
-        <div className="flex items-center space-x-2 mb-3">
-          <ShieldCheck className="h-5 w-5 text-emerald-400" />
-          <h3 className="text-base font-bold text-slate-100">CAP Theorem Implementation Breakdown</h3>
+      <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-xs">
+        <div className="flex items-center space-x-2 mb-2">
+          <ShieldCheck className="h-5 w-5 text-emerald-600" />
+          <h3 className="text-base font-bold text-slate-900">CAP Theorem Distributed Guarantees</h3>
         </div>
-        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-          Under Brewer's CAP Theorem, a distributed data store can simultaneously provide at most two out of three guarantees:
+        <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+          Under Brewer&apos;s CAP Theorem, a distributed data store can simultaneously provide at most two out of three guarantees:
           <strong> Consistency</strong>, <strong>Availability</strong>, and <strong>Partition Tolerance</strong>.
           MultiNode POS is strictly configured as a <strong>CP system</strong>:
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 rounded-lg bg-slate-950 border border-emerald-500/20">
-            <div className="flex items-center space-x-2 text-emerald-400 font-bold mb-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>Consistency (C) - ACTIVE</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+          <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+            <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>Consistency (C) — ACTIVE</span>
             </div>
-            <p className="text-slate-300 leading-relaxed">
-              Enforced via <code className="text-emerald-300">wsrep_sync_wait = 7</code>.
-              When any client executes a READ on Node 2 or 3, the node pauses until all pending write replication queues are fully applied locally.
+            <p className="text-slate-600 leading-relaxed">
+              Enforced via <code className="text-emerald-700 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200">wsrep_sync_wait = 7</code>.
+              When a client executes a read on any node, the node pauses until all in-flight write replication queues are fully applied locally.
               Stale reads are mathematically eliminated.
             </p>
           </div>
 
-          <div className="p-4 rounded-lg bg-slate-950 border border-emerald-500/20">
-            <div className="flex items-center space-x-2 text-emerald-400 font-bold mb-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>Partition Tolerance (P) - ACTIVE</span>
+          <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+            <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>Partition Tolerance (P) — ACTIVE</span>
             </div>
-            <p className="text-slate-300 leading-relaxed">
-              Galera uses a quorum voting mechanism across all 3 nodes.
+            <p className="text-slate-600 leading-relaxed">
+              Galera uses a quorum voting algorithm across all 3 nodes.
               If a network partition isolates 1 node, the remaining 2 nodes maintain majority quorum (2/3 &gt; 50%) and continue serving transactions.
               The isolated node safely pauses to prevent split-brain anomalies.
             </p>
           </div>
 
-          <div className="p-4 rounded-lg bg-slate-950 border border-amber-500/20">
-            <div className="flex items-center space-x-2 text-amber-400 font-bold mb-1.5">
-              <Activity className="h-4 w-4" />
-              <span>Availability (A) - TRADE-OFF</span>
+          <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+            <div className="flex items-center space-x-2 text-amber-800 font-bold text-sm">
+              <Activity className="h-4 w-4 text-amber-600" />
+              <span>Availability (A) — TRADE-OFF</span>
             </div>
-            <p className="text-slate-400 leading-relaxed">
-              If an isolated node loses majority quorum, it rejects write queries with <code className="text-amber-300">WSREP has not yet prepared node for application use</code>.
+            <p className="text-slate-600 leading-relaxed">
+              If an isolated node loses majority quorum, it rejects write queries with <code className="text-amber-800 font-bold bg-white px-1.5 py-0.5 rounded border border-slate-200">WSREP has not yet prepared node for application use</code>.
               It prioritizes data consistency over blind availability.
             </p>
           </div>
@@ -196,53 +190,51 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
       </div>
 
       {/* Live Write-to-Read Multi-Master Replication Verifier */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-sm">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <GitCommit className="h-5 w-5 text-teal-400" />
-            <h3 className="text-base font-bold text-slate-100">Live Multi-Master Replication Verifier</h3>
-          </div>
+      <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-xs">
+        <div className="flex items-center space-x-2 mb-2">
+          <GitCommit className="h-5 w-5 text-teal-600" />
+          <h3 className="text-base font-bold text-slate-900">Live Multi-Master Replication Probe</h3>
         </div>
-        <p className="text-xs text-slate-400 mb-4">
-          Test real-time multi-master propagation: Execute a price mutation on the Write Origin Node, and instantly query the Read Target Node to verify identical state.
+        <p className="text-xs text-slate-500 mb-5">
+          Execute a price mutation on the Write Origin Node, and immediately read from the Read Target Node to verify zero replication lag.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs">
           <div>
-            <label className="block text-slate-400 mb-1 font-medium">Write Origin Node</label>
+            <label className="block text-slate-600 mb-1.5 font-bold">Write Origin Node</label>
             <select
               value={testOrigin}
               onChange={(e) => setTestOrigin(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+              className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
             >
-              <option value="1">Node 1 (20.169.214.104)</option>
-              <option value="2">Node 2 (172.191.145.235)</option>
-              <option value="3">Node 3 (172.174.36.131)</option>
+              <option value="1">Node 1 (10.0.1.4 / 20.169.214.104)</option>
+              <option value="2">Node 2 (10.0.1.5 / 172.191.145.235)</option>
+              <option value="3">Node 3 (10.0.1.6 / 172.174.36.131)</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-medium">Read Target Node</label>
+            <label className="block text-slate-600 mb-1.5 font-bold">Read Target Node</label>
             <select
               value={testTarget}
               onChange={(e) => setTestTarget(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+              className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
             >
-              <option value="2">Node 2 (172.191.145.235)</option>
-              <option value="3">Node 3 (172.174.36.131)</option>
-              <option value="1">Node 1 (20.169.214.104)</option>
+              <option value="2">Node 2 (10.0.1.5 / 172.191.145.235)</option>
+              <option value="3">Node 3 (10.0.1.6 / 172.174.36.131)</option>
+              <option value="1">Node 1 (10.0.1.4 / 20.169.214.104)</option>
             </select>
           </div>
 
           <button
             onClick={handleRunReplicationVerification}
             disabled={verifying}
-            className="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg transition-all flex items-center justify-center space-x-2"
+            className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-xs"
           >
             {verifying ? (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Synchronizing...</span>
+                <span>Probing Sync...</span>
               </>
             ) : (
               <>
@@ -254,29 +246,29 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
         </div>
 
         {verificationResult && (
-          <div className="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-2">
+          <div className="mt-5 p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-3">
             <div className="flex items-center space-x-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-              <span className="font-bold text-emerald-200">
-                Replication Verified 100% Certified (Latency: {verificationResult.duration_ms}ms)
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <span className="font-bold text-sm text-emerald-900">
+                Synchronous Replication Verified (Roundtrip: {verificationResult.duration_ms}ms)
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[11px]">
-              <div className="bg-slate-950 p-2 rounded border border-emerald-500/20">
-                <span className="text-slate-500 block">Write Node:</span>
-                <strong className="text-slate-200">{verificationResult.origin}</strong>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 font-mono text-xs">
+              <div className="bg-white p-3 rounded-lg border border-emerald-200">
+                <span className="text-slate-400 block text-[11px]">Write Node:</span>
+                <strong className="text-slate-900">{verificationResult.origin}</strong>
               </div>
-              <div className="bg-slate-950 p-2 rounded border border-emerald-500/20">
-                <span className="text-slate-500 block">Written Price:</span>
-                <strong className="text-emerald-400">${verificationResult.updated_price.toFixed(2)}</strong>
+              <div className="bg-white p-3 rounded-lg border border-emerald-200">
+                <span className="text-slate-400 block text-[11px]">Written Price:</span>
+                <strong className="text-emerald-700 font-bold">${verificationResult.updated_price.toFixed(2)}</strong>
               </div>
-              <div className="bg-slate-950 p-2 rounded border border-emerald-500/20">
-                <span className="text-slate-500 block">Read Node:</span>
-                <strong className="text-slate-200">{verificationResult.target}</strong>
+              <div className="bg-white p-3 rounded-lg border border-emerald-200">
+                <span className="text-slate-400 block text-[11px]">Read Node:</span>
+                <strong className="text-slate-900">{verificationResult.target}</strong>
               </div>
-              <div className="bg-slate-950 p-2 rounded border border-emerald-500/20">
-                <span className="text-slate-500 block">Read Price:</span>
-                <strong className="text-emerald-400">${verificationResult.verified_price.toFixed(2)}</strong>
+              <div className="bg-white p-3 rounded-lg border border-emerald-200">
+                <span className="text-slate-400 block text-[11px]">Read Price:</span>
+                <strong className="text-emerald-700 font-bold">${verificationResult.verified_price.toFixed(2)}</strong>
               </div>
             </div>
           </div>
