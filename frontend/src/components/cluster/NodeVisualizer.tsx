@@ -12,6 +12,9 @@ interface NodeVisualizerProps {
 export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh, loading }) => {
   const [testOrigin, setTestOrigin] = useState('1');
   const [testTarget, setTestTarget] = useState('2');
+  const [manualProductId, setManualProductId] = useState('1');
+  const [manualPrice, setManualPrice] = useState('599.99');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{
     origin: string;
@@ -24,28 +27,43 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
   } | null>(null);
 
   const handleRunReplicationVerification = async () => {
+    setValidationError(null);
+    const prodId = parseInt(manualProductId, 10);
+    const parsedPrice = parseFloat(manualPrice);
+
+    if (isNaN(prodId) || prodId < 0) {
+      setValidationError('Please enter a valid Product ID.');
+      return;
+    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      setValidationError('Please enter a valid price greater than $0.');
+      return;
+    }
+
     setVerifying(true);
     setVerificationResult(null);
 
     const startTime = performance.now();
     try {
-      const testPrice = Math.round((499.00 + Math.random() * 50) * 100) / 100;
-      await api.updateProductPrice(1, testPrice, testOrigin);
-      const targetRead = await api.getProduct(1, testTarget);
+      // 1. Write user-specified price to origin node
+      await api.updateProductPrice(prodId, parsedPrice, testOrigin);
+
+      // 2. Read back from target node
+      const targetRead = await api.getProduct(prodId, testTarget);
       const readPrice = Number(targetRead.product.CurrentPrice);
       const endTime = performance.now();
 
       setVerificationResult({
         origin: `Node ${testOrigin}`,
         target: `Node ${testTarget}`,
-        product_id: 1,
-        updated_price: testPrice,
+        product_id: prodId,
+        updated_price: parsedPrice,
         verified_price: readPrice,
-        identical: testPrice === readPrice,
+        identical: parsedPrice === readPrice,
         duration_ms: Math.round(endTime - startTime)
       });
     } catch (err: any) {
-      console.error(err);
+      setValidationError(err.message || 'Verification failed.');
     } finally {
       setVerifying(false);
     }
@@ -199,50 +217,89 @@ export const NodeVisualizer: React.FC<NodeVisualizerProps> = ({ nodes, onRefresh
           Execute a price mutation on the Write Origin Node, and immediately read from the Read Target Node to verify zero replication lag.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs">
-          <div>
-            <label className="block text-slate-600 mb-1.5 font-bold">Write Origin Node</label>
-            <select
-              value={testOrigin}
-              onChange={(e) => setTestOrigin(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              <option value="1">Node 1 (10.0.1.4 / 20.169.214.104)</option>
-              <option value="2">Node 2 (10.0.1.5 / 172.191.145.235)</option>
-              <option value="3">Node 3 (10.0.1.6 / 172.174.36.131)</option>
-            </select>
+        <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-slate-700 mb-1.5 font-bold">Product ID</label>
+              <input
+                type="number"
+                min="0"
+                value={manualProductId}
+                onChange={(e) => setManualProductId(e.target.value)}
+                placeholder="e.g. 1"
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">Target catalog product</span>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 mb-1.5 font-bold">Target New Price ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={manualPrice}
+                onChange={(e) => setManualPrice(e.target.value)}
+                placeholder="e.g. 599.99"
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 font-mono"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">Exact price to write</span>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 mb-1.5 font-bold">Write Origin Node</label>
+              <select
+                value={testOrigin}
+                onChange={(e) => setTestOrigin(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="1">Node 1 (10.0.1.4)</option>
+                <option value="2">Node 2 (10.0.1.5)</option>
+                <option value="3">Node 3 (10.0.1.6)</option>
+              </select>
+              <span className="text-[10px] text-slate-400 mt-1 block">Node receiving UPDATE</span>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 mb-1.5 font-bold">Read Target Node</label>
+              <select
+                value={testTarget}
+                onChange={(e) => setTestTarget(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="2">Node 2 (10.0.1.5)</option>
+                <option value="3">Node 3 (10.0.1.6)</option>
+                <option value="1">Node 1 (10.0.1.4)</option>
+              </select>
+              <span className="text-[10px] text-slate-400 mt-1 block">Node verifying read</span>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-slate-600 mb-1.5 font-bold">Read Target Node</label>
-            <select
-              value={testTarget}
-              onChange={(e) => setTestTarget(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              <option value="2">Node 2 (10.0.1.5 / 172.191.145.235)</option>
-              <option value="3">Node 3 (10.0.1.6 / 172.174.36.131)</option>
-              <option value="1">Node 1 (10.0.1.4 / 20.169.214.104)</option>
-            </select>
-          </div>
+          {validationError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-medium text-xs">
+              {validationError}
+            </div>
+          )}
 
-          <button
-            onClick={handleRunReplicationVerification}
-            disabled={verifying}
-            className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all flex items-center justify-center space-x-2 shadow-xs"
-          >
-            {verifying ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Probing Sync...</span>
-              </>
-            ) : (
-              <>
-                <span>Run Replication Probe</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={handleRunReplicationVerification}
+              disabled={verifying}
+              className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all flex items-center space-x-2 shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {verifying ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Probing Multi-Master Sync...</span>
+                </>
+              ) : (
+                <>
+                  <span>Run Replication Probe</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {verificationResult && (
