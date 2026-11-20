@@ -83,5 +83,27 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Adjusted the test quantity to `500` (which exceeds the available stock of ~225 while keeping the line total within the decimal range), successfully verifying `trig_OrderLineInventoryInsert` and the resulting rollback.
 - **In Plain English:** Testing an out-of-stock order with 9 million items caused the total price calculation to overflow the database decimal column. We adjusted the test quantity to 500, which exceeds warehouse stock while staying within normal price limits, successfully triggering the stock warning and rollback.
 
+### [ERR-012] Customer Dropdown Selection Desync in POS Terminal
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `frontend/src/components/pos/Terminal.tsx`
+- **Technical Issue:** Searching for a customer (e.g. "king" -> "Kingston Hegde") populated the dropdown options, but the active selected customer ID was not synchronized unless explicitly re-clicked, and customer tax rates returned as strings from MariaDB (e.g., `'0.080000'`) were evaluated strictly, leaving the sales tax calculated at the previous customer's rate (e.g. 6.00% instead of 8.00%).
+- **Resolution:** Added auto-selection of the first matched customer upon search execution, ensured the currently selected customer is always preserved in the `<select>` options list even when filtered, and explicitly converted `TaxRate` via `parseFloat(customer.TaxRate || 0)` to guarantee dynamic tax recalculation.
+- **In Plain English:** When searching for a customer like Kingston Hegde, the search filtered the dropdown but didn't immediately select them or update the tax calculation. We fixed the search handler to auto-select the match and parsed the database tax rate so sales tax updates immediately.
+
+### [ERR-013] Modal Backdrop Occlusion of Validation Error Messages
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `frontend/src/components/products/Catalog.tsx`
+- **Technical Issue:** Input validation errors for the "Edit Price" and "Add Product" modals (such as entering a negative price or 0) dispatched notifications to the parent catalog page container. Because the modal rendered with a fixed full-screen backdrop (`z-50`), the error banner was hidden behind the modal overlay, requiring the user to dismiss the modal to discover why their submission failed.
+- **Resolution:** Introduced localized in-modal error states (`priceModalError`, `addModalError`) and rendered dedicated alert banners directly inside the modal dialogs immediately above the action buttons, keeping the modal open so users can correct the input.
+- **In Plain English:** When entering an invalid price (like $0 or a negative number), the error message was being displayed behind the popup window. We moved the error message inside the popup dialog itself so you can see the issue and fix it immediately without closing the window.
+
+### [ERR-014] No-Op Identical Price Update and Inaccurate Audit Notification
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `frontend/src/components/products/Catalog.tsx`, `backend/app/services/pos_service.py`
+- **Technical Issue:** Submitting an update where `NewPrice` was identical to `CurrentPrice` executed a redundant SQL `UPDATE` statement. In the database, trigger `trig_ProductPriceAudit` correctly ignored the operation due to its `IF OLD.CurrentPrice <> NEW.CurrentPrice` guard, but the backend returned success and the UI falsely notified the user that `trig_ProductPriceAudit` had recorded the price change to `PriceHistory`.
+- **Resolution:** Added defensive validation at both layers: the frontend modal detects identical values and displays an in-modal warning blocking submission; the backend service verifies `round(new_price, 2) != round(old_price, 2)`, returning `HTTP 400 Bad Request` if identical. Updated notification copy to explicitly display the price transition (`$OldPrice → $NewPrice`).
+- **In Plain English:** Submitting the exact same price for a product sent an update to the database and showed a success message saying the audit log was updated, even though the database trigger smartly skipped it because nothing changed. We added validation to both the popup and the backend to block identical price updates with a clear warning and updated the success message to show the old-to-new price change.
+
+
 
 
