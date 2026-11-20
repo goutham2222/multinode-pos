@@ -22,7 +22,7 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
 
   useEffect(() => {
     loadProducts();
-    loadCustomers();
+    loadCustomers(false);
   }, [targetNode]);
 
   const loadProducts = async () => {
@@ -42,13 +42,12 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
     }
   };
 
-  const loadCustomers = async () => {
+  const loadCustomers = async (autoSelect = false) => {
     try {
-      const res = await api.getCustomers(customerSearch, 15, targetNode);
+      const res = await api.getCustomers(customerSearch, 20, targetNode);
       setCustomers(res.rows);
-      if (!selectedCustomer && res.rows.length > 0) {
-        const fullCust = await api.getCustomer(res.rows[0].CustomerID, targetNode);
-        setSelectedCustomer(fullCust.customer);
+      if (res.rows.length > 0 && (autoSelect || !selectedCustomer)) {
+        await handleSelectCustomer(res.rows[0].CustomerID);
       }
     } catch (err: any) {
       console.error(err);
@@ -58,10 +57,17 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
   const handleSelectCustomer = async (customerId: number) => {
     try {
       const fullCust = await api.getCustomer(customerId, targetNode);
-      setSelectedCustomer(fullCust.customer);
+      const cust = fullCust.customer;
+      cust.TaxRate = parseFloat(cust.TaxRate as any) || 0.06;
+      setSelectedCustomer(cust);
     } catch {
       const found = customers.find(c => c.CustomerID === customerId);
-      if (found) setSelectedCustomer(found);
+      if (found) {
+        setSelectedCustomer({
+          ...found,
+          TaxRate: parseFloat(found.TaxRate as any) || 0.06
+        });
+      }
     }
   };
 
@@ -96,9 +102,15 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.CurrentPrice * item.quantity, 0);
-  const taxRate = selectedCustomer?.TaxRate ?? 0.06;
+  const taxRate = selectedCustomer?.TaxRate ? Number(selectedCustomer.TaxRate) : 0.06;
   const estimatedTax = Math.round(subtotal * taxRate * 100) / 100;
   const total = subtotal + estimatedTax;
+
+  // Ensure selectedCustomer is included in the dropdown options
+  const displayedCustomers = [...customers];
+  if (selectedCustomer && !displayedCustomers.some(c => c.CustomerID === selectedCustomer.CustomerID)) {
+    displayedCustomers.unshift(selectedCustomer);
+  }
 
   const handleCheckout = async () => {
     if (!selectedCustomer) {
@@ -214,11 +226,11 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Select Customer</label>
                 <select
-                  value={selectedCustomer?.CustomerID || ''}
+                  value={selectedCustomer?.CustomerID !== undefined ? selectedCustomer.CustomerID : ''}
                   onChange={(e) => handleSelectCustomer(Number(e.target.value))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
                 >
-                  {customers.map((c) => (
+                  {displayedCustomers.map((c) => (
                     <option key={c.CustomerID} value={c.CustomerID}>
                       {c.FirstName} {c.LastName} — {c.Email} (ZIP {c.Zip})
                     </option>
@@ -234,15 +246,27 @@ export const Terminal: React.FC<TerminalProps> = ({ targetNode }) => {
                     placeholder="Search name..."
                     value={customerSearch}
                     onChange={(e) => setCustomerSearch(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && loadCustomers()}
+                    onKeyDown={(e) => e.key === 'Enter' && loadCustomers(true)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                   />
                   <button
-                    onClick={loadCustomers}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                    onClick={() => loadCustomers(true)}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs"
                   >
                     Find
                   </button>
+                  {customerSearch && (
+                    <button
+                      onClick={() => {
+                        setCustomerSearch('');
+                        setTimeout(() => loadCustomers(false), 0);
+                      }}
+                      className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors"
+                      title="Clear search"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
