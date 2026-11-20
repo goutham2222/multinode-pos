@@ -100,10 +100,15 @@ export const Catalog: React.FC<CatalogProps> = ({ targetNode }) => {
         return;
       }
 
+      if (Number(newPrice.toFixed(2)) === Number(Number(selectedProduct.CurrentPrice).toFixed(2))) {
+        setPriceModalError(`New price ($${newPrice.toFixed(2)}) is identical to current price. Please enter a different price.`);
+        return;
+      }
+
       const res = await api.updateProductPrice(selectedProduct.ProductID, newPrice, targetNode);
       setNotification({
         type: 'success',
-        message: `Updated Product #${selectedProduct.ProductID} price to $${newPrice.toFixed(2)}. Trigger 'trig_ProductPriceAudit' logged old price $${res.old_price.toFixed(2)} to PriceHistory.`
+        message: `Updated Product #${selectedProduct.ProductID} price: $${res.old_price.toFixed(2)} → $${newPrice.toFixed(2)}. Trigger 'trig_ProductPriceAudit' logged price change to PriceHistory.`
       });
       setShowPriceModal(false);
       setPriceModalError(null);

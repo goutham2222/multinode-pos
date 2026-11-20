@@ -155,6 +155,12 @@ class PosService:
                         raise HTTPException(status_code=404, detail=f"Product {product_id} not found.")
 
                     old_price = float(prod["CurrentPrice"])
+                    if round(new_price, 2) == round(old_price, 2):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"New price (${new_price:.2f}) is identical to current price. Price audit requires a price change."
+                        )
+
                     cur.execute(
                         "UPDATE Product SET CurrentPrice = %s WHERE ProductID = %s",
                         (new_price, product_id)
