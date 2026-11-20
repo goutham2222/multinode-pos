@@ -130,7 +130,14 @@ export const api = {
     if (params?.offset) q.set('offset', params.offset.toString());
     if (params?.targetNode) q.set('target_node', params.targetNode);
 
-    return fetchJson<{ total: number; rows: Order[]; node_executed: any; parameterized_sql: string; bound_params: any[] }>(
+    return fetchJson<{
+      total: number;
+      rows: Order[];
+      node_executed: any;
+      parameterized_sql: string;
+      bound_params: any[];
+      bound_param_details?: { field: string; value: any }[];
+    }>(
       `${API_BASE}/orders?${q.toString()}`
     );
   },

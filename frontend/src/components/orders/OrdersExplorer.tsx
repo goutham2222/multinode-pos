@@ -24,6 +24,7 @@ export const OrdersExplorer: React.FC<OrdersExplorerProps> = ({ targetNode }) =>
   // Parameterized Query Debug State
   const [executedSql, setExecutedSql] = useState('');
   const [boundParams, setBoundParams] = useState<any[]>([]);
+  const [boundParamDetails, setBoundParamDetails] = useState<{ field: string; value: any }[]>([]);
 
   // Selected Order Drawer
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
@@ -51,6 +52,7 @@ export const OrdersExplorer: React.FC<OrdersExplorerProps> = ({ targetNode }) =>
       setTotal(res.total);
       setExecutedSql(res.parameterized_sql || '');
       setBoundParams(res.bound_params || []);
+      setBoundParamDetails(res.bound_param_details || []);
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -176,21 +178,43 @@ export const OrdersExplorer: React.FC<OrdersExplorerProps> = ({ targetNode }) =>
 
         {/* Prepared Query Inspector Strip */}
         {executedSql && (
-          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-            <div className="flex items-center space-x-2 text-slate-600 mb-1.5">
-              <Code2 className="h-4 w-4 text-emerald-600" />
-              <span className="font-bold text-slate-800">Dynamic Parameterized Query (Prepared Statement)</span>
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-slate-600">
+              <div className="flex items-center space-x-2">
+                <Code2 className="h-4 w-4 text-emerald-600" />
+                <span className="font-bold text-slate-800">Dynamic Parameterized Query (Prepared Statement)</span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">
+                %s placeholders map 1-to-1 positionally from left to right
+              </span>
             </div>
-            <pre className="text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap line-clamp-2">
+
+            <pre className="text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap line-clamp-3 bg-white p-3 rounded-lg border border-slate-200/80">
               {executedSql.trim()}
             </pre>
-            <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">Bound Parameters:</span>
-              {boundParams.map((param, i) => (
-                <span key={i} className="bg-white border border-slate-200 px-2 py-0.5 rounded font-mono text-emerald-800 font-bold shadow-2xs">
-                  ${i + 1}: {String(param)}
-                </span>
-              ))}
+
+            <div className="pt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span className="font-bold text-slate-700">Bound Parameters:</span>
+              {boundParamDetails.length > 0
+                ? boundParamDetails.map((item, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-mono text-xs shadow-2xs"
+                    >
+                      <span className="text-emerald-700 font-bold">${i + 1}</span>
+                      <span className="text-slate-500 text-[11px] font-semibold">[{item.field}]:</span>
+                      <span className="text-slate-900 font-bold">"{String(item.value)}"</span>
+                    </span>
+                  ))
+                : boundParams.map((param, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center space-x-1 bg-white border border-slate-200 px-2 py-0.5 rounded-lg font-mono text-emerald-800 font-bold shadow-2xs"
+                    >
+                      <span>${i + 1}:</span>
+                      <span>{String(param)}</span>
+                    </span>
+                  ))}
             </div>
           </div>
         )}

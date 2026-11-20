@@ -25,14 +25,18 @@ class QueryService:
         """
         conditions = ["1=1"]
         params: List[Any] = []
+        param_details: List[Dict[str, Any]] = []
 
         if customer_id is not None:
             conditions.append("o.CustomerID = %s")
             params.append(customer_id)
+            param_details.append({"field": "CustomerID", "value": customer_id})
 
         if customer_name:
             conditions.append("(c.FirstName LIKE %s OR c.LastName LIKE %s)")
             params.extend([f"%{customer_name}%", f"%{customer_name}%"])
+            param_details.append({"field": "FirstName", "value": f"%{customer_name}%"})
+            param_details.append({"field": "LastName", "value": f"%{customer_name}%"})
 
         if status:
             if status.lower() == "shipped":
@@ -43,22 +47,27 @@ class QueryService:
         if date_from:
             conditions.append("o.datePlaced >= %s")
             params.append(date_from)
+            param_details.append({"field": "PlacedFrom", "value": date_from})
 
         if date_to:
             conditions.append("o.datePlaced <= %s")
             params.append(date_to)
+            param_details.append({"field": "PlacedTo", "value": date_to})
 
         if zip_code:
             conditions.append("c.Zip = %s")
             params.append(zip_code)
+            param_details.append({"field": "ZipCode", "value": zip_code})
 
         if min_total is not None:
             conditions.append("o.OrderTotal >= %s")
             params.append(min_total)
+            param_details.append({"field": "MinTotal", "value": min_total})
 
         if max_total is not None:
             conditions.append("o.OrderTotal <= %s")
             params.append(max_total)
+            param_details.append({"field": "MaxTotal", "value": max_total})
 
         where_clause = " AND ".join(conditions)
 
@@ -76,6 +85,10 @@ class QueryService:
             LIMIT %s OFFSET %s
         """
         params_with_paging = list(params) + [min(limit, 200), offset]
+        param_details_with_paging = list(param_details) + [
+            {"field": "LIMIT", "value": min(limit, 200)},
+            {"field": "OFFSET", "value": offset}
+        ]
 
         count_query = f"""
             SELECT COUNT(*) AS total
@@ -101,7 +114,8 @@ class QueryService:
                     "rows": rows,
                     "node_executed": node_meta,
                     "parameterized_sql": query,
-                    "bound_params": params_with_paging
+                    "bound_params": params_with_paging,
+                    "bound_param_details": param_details_with_paging
                 }
 
     @staticmethod
