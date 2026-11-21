@@ -33,6 +33,7 @@ pnpm-debug.log*
 # Database & CSV Staging Data
 data/raw/*.csv
 data/exported_json/*.json
+data/nosql_export/
 *.dump
 *.sql.gz
 

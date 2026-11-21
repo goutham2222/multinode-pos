@@ -44,3 +44,21 @@ def test_sql_demo_route():
     data = res.json()
     assert data["safe_mode"] is True
     assert data["row_count"] >= 1
+
+
+def test_nosql_analytics_routes():
+    res_orders = client.get("/api/v1/analytics/documents/orders?limit=3")
+    assert res_orders.status_code == 200
+    data_orders = res_orders.json()
+    assert "documents" in data_orders
+    assert len(data_orders["documents"]) == 3
+    sample_order = data_orders["documents"][0]
+    assert "order_id" in sample_order
+    assert "customer" in sample_order
+    assert "items" in sample_order
+
+    res_clv = client.get("/api/v1/analytics/clv-tiers")
+    assert res_clv.status_code == 200
+    data_clv = res_clv.json()
+    assert "tiers" in data_clv
+    assert len(data_clv["tiers"]) > 0

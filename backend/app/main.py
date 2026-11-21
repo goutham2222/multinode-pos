@@ -10,6 +10,7 @@ from app.api.routes_customers import router as customers_router
 from app.api.routes_orders import router as orders_router
 from app.api.routes_checkout import router as checkout_router
 from app.api.routes_sql_demo import router as sql_demo_router
+from app.api.routes_analytics import router as analytics_router
 
 app = FastAPI(
     title="MultiNode POS API",
@@ -34,6 +35,7 @@ app.include_router(customers_router, prefix=API_V1_PREFIX)
 app.include_router(orders_router, prefix=API_V1_PREFIX)
 app.include_router(checkout_router, prefix=API_V1_PREFIX)
 app.include_router(sql_demo_router, prefix=API_V1_PREFIX)
+app.include_router(analytics_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
