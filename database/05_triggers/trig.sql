@@ -229,9 +229,9 @@ CREATE TRIGGER `trig_OrderLineSyncTotalsInsert`
 AFTER INSERT ON `OrderLine`
 FOR EACH ROW
 BEGIN
-  DECLARE v_new_subtotal DECIMAL(8,2);
-  DECLARE v_tax_rate DECIMAL(7,6);
-  DECLARE v_new_tax DECIMAL(7,2);
+  DECLARE v_new_subtotal DECIMAL(8,2) DEFAULT 0.00;
+  DECLARE v_tax_rate DECIMAL(7,6) DEFAULT 0.000000;
+  DECLARE v_new_tax DECIMAL(7,2) DEFAULT 0.00;
 
   -- Recompute subtotal
   SELECT COALESCE(SUM(`LineTotal`), 0.00) INTO v_new_subtotal
@@ -245,8 +245,8 @@ BEGIN
   LEFT JOIN `TaxRates` tr ON c.`Zip` = tr.`ZipCode`
   WHERE o.`OrderID` = NEW.`OrderID`;
 
-  -- Half-penny rounding (ROUND)
-  SET v_new_tax = ROUND(v_new_subtotal * v_tax_rate, 2);
+  -- Half-penny rounding (ROUND) with null safety
+  SET v_new_tax = COALESCE(ROUND(v_new_subtotal * v_tax_rate, 2), 0.00);
 
   -- Update Order header
   UPDATE `Order`
@@ -260,9 +260,9 @@ CREATE TRIGGER `trig_OrderLineSyncTotalsUpdate`
 AFTER UPDATE ON `OrderLine`
 FOR EACH ROW
 BEGIN
-  DECLARE v_new_subtotal DECIMAL(8,2);
-  DECLARE v_tax_rate DECIMAL(7,6);
-  DECLARE v_new_tax DECIMAL(7,2);
+  DECLARE v_new_subtotal DECIMAL(8,2) DEFAULT 0.00;
+  DECLARE v_tax_rate DECIMAL(7,6) DEFAULT 0.000000;
+  DECLARE v_new_tax DECIMAL(7,2) DEFAULT 0.00;
 
   SELECT COALESCE(SUM(`LineTotal`), 0.00) INTO v_new_subtotal
   FROM `OrderLine`
@@ -274,7 +274,7 @@ BEGIN
   LEFT JOIN `TaxRates` tr ON c.`Zip` = tr.`ZipCode`
   WHERE o.`OrderID` = NEW.`OrderID`;
 
-  SET v_new_tax = ROUND(v_new_subtotal * v_tax_rate, 2);
+  SET v_new_tax = COALESCE(ROUND(v_new_subtotal * v_tax_rate, 2), 0.00);
 
   UPDATE `Order`
   SET `OrderSubtotal` = v_new_subtotal,
@@ -287,9 +287,9 @@ CREATE TRIGGER `trig_OrderLineSyncTotalsDelete`
 AFTER DELETE ON `OrderLine`
 FOR EACH ROW
 BEGIN
-  DECLARE v_new_subtotal DECIMAL(8,2);
-  DECLARE v_tax_rate DECIMAL(7,6);
-  DECLARE v_new_tax DECIMAL(7,2);
+  DECLARE v_new_subtotal DECIMAL(8,2) DEFAULT 0.00;
+  DECLARE v_tax_rate DECIMAL(7,6) DEFAULT 0.000000;
+  DECLARE v_new_tax DECIMAL(7,2) DEFAULT 0.00;
 
   SELECT COALESCE(SUM(`LineTotal`), 0.00) INTO v_new_subtotal
   FROM `OrderLine`
@@ -301,7 +301,7 @@ BEGIN
   LEFT JOIN `TaxRates` tr ON c.`Zip` = tr.`ZipCode`
   WHERE o.`OrderID` = OLD.`OrderID`;
 
-  SET v_new_tax = ROUND(v_new_subtotal * v_tax_rate, 2);
+  SET v_new_tax = COALESCE(ROUND(v_new_subtotal * v_tax_rate, 2), 0.00);
 
   UPDATE `Order`
   SET `OrderSubtotal` = v_new_subtotal,

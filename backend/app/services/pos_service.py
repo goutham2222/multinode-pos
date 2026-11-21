@@ -133,6 +133,17 @@ class PosService:
                             "node": node_meta
                         }
                     )
+                # Check for DECIMAL overflow on LineTotal (Error 1264)
+                if "1264" in err_msg or "Out of range value for column 'LineTotal'" in err_msg:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "error": "QUANTITY_OVERFLOW",
+                            "message": "Requested item quantity causes line total to exceed maximum allowable order limit ($999,999.99).",
+                            "action": "TRANSACTION_ROLLED_BACK",
+                            "node": node_meta
+                        }
+                    )
                 raise HTTPException(status_code=500, detail=f"Database operational error: {err_msg}")
             except HTTPException:
                 conn.rollback()
@@ -183,6 +194,9 @@ class PosService:
                         "audit_record": audit,
                         "node_executed": node_meta
                     }
+            except HTTPException:
+                conn.rollback()
+                raise
             except Exception as e:
                 conn.rollback()
                 raise HTTPException(status_code=500, detail=str(e))
@@ -219,6 +233,9 @@ class PosService:
                         "delta": qty_delta,
                         "node_executed": node_meta
                     }
+            except HTTPException:
+                conn.rollback()
+                raise
             except Exception as e:
                 conn.rollback()
                 raise HTTPException(status_code=500, detail=str(e))

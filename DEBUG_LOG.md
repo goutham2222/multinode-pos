@@ -104,6 +104,28 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Added defensive validation at both layers: the frontend modal detects identical values and displays an in-modal warning blocking submission; the backend service verifies `round(new_price, 2) != round(old_price, 2)`, returning `HTTP 400 Bad Request` if identical. Updated notification copy to explicitly display the price transition (`$OldPrice → $NewPrice`).
 - **In Plain English:** Submitting the exact same price for a product sent an update to the database and showed a success message saying the audit log was updated, even though the database trigger smartly skipped it because nothing changed. We added validation to both the popup and the backend to block identical price updates with a clear warning and updated the success message to show the old-to-new price change.
 
+### [ERR-015] Generic Exception Swallowing in pos_service Product Operations
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `backend/app/services/pos_service.py` (`update_price`, `update_stock`)
+- **Technical Issue:** Methods caught `except Exception as e:` without re-raising `HTTPException`. When intentional client errors (such as HTTP 400 for identical price or HTTP 404 for nonexistent product) were raised, Python caught them as general `Exception` instances and converted them into HTTP 500 Internal Server Errors.
+- **Resolution:** Added explicit `except HTTPException: conn.rollback(); raise` before generic exception handlers across `update_price` and `update_stock`.
+- **In Plain English:** When the server wanted to tell the user "price is identical" (400) or "product not found" (404), a generic catch-all block accidentally wrapped those clean warnings into a scary "500 Internal Server Error". We added an explicit pass-through so client validation errors return their true status codes.
+
+### [ERR-016] Unhandled DECIMAL(8,2) Overflow in Transactional Checkout
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `backend/app/services/pos_service.py`
+- **Technical Issue:** Ordering extreme item quantities (e.g. 9,999 units of a high-value product) caused the virtual generated column `LineTotal DECIMAL(8,2)` to exceed $999,999.99, raising MariaDB error `1264 ("Out of range value for column 'LineTotal'")`. The service unhandled this error and returned HTTP 500.
+- **Resolution:** Intercepted MariaDB error `1264` within the database exception handler and mapped it to a clear HTTP 400 Bad Request response with error code `QUANTITY_OVERFLOW`.
+- **In Plain English:** Entering an enormous quantity in checkout caused the total price to overflow the database number limit, resulting in a database crash error. We intercepted this database error and turned it into a clean "Quantity exceeds maximum allowable line total limit" message.
+
+### [ERR-017] Uninitialized Variable Nullability in trig_OrderLineSyncTotalsDelete
+- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
+- **Component:** `database/05_triggers/trig.sql` (`trig_OrderLineSyncTotalsDelete`)
+- **Technical Issue:** In `trig_OrderLineSyncTotalsDelete`, local variable `DECLARE v_new_tax DECIMAL(7,2);` defaulted to `NULL`. When all line items for an order were deleted or when a calculation resulted in null, `v_new_tax` remained `NULL`, triggering MariaDB error `1048 ("Column 'SalesTax' cannot be null")` upon updating the parent `Order` record.
+- **Resolution:** Initialized all local trigger variables with defaults (`DEFAULT 0.00` and `DEFAULT 0.000000`) and wrapped the calculation with `COALESCE(ROUND(...), 0.00)` across insert, update, and delete triggers.
+- **In Plain English:** Deleting all items from an order caused the sales tax calculation inside the database trigger to turn into null, which failed because sales tax cannot be blank. We added zero-fallbacks inside the triggers so the tax safely updates to $0.00 instead of crashing.
+
+
 
 
 
