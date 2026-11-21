@@ -189,7 +189,7 @@ export const OrdersExplorer: React.FC<OrdersExplorerProps> = ({ targetNode }) =>
               </span>
             </div>
 
-            <pre className="text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap line-clamp-3 bg-white p-3 rounded-lg border border-slate-200/80">
+            <pre className="text-xs text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap max-h-56 overflow-y-auto bg-white p-3.5 rounded-lg border border-slate-200/80 leading-relaxed">
               {executedSql.trim()}
             </pre>
 
