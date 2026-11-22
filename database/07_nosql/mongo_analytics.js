@@ -1,217 +1,306 @@
 /**
  * ==============================================================================
- * MultiNode POS: Phase 8 - MongoDB Analytical Warehouse & Aggregation Pipelines
- * Target: MongoDB 6.0+ / mongosh
- * Database: pos_analytics
+ * MultiNode POS: Phase 8 - MongoDB Milestone Analytics Suite
+ * Target DBMS: MongoDB 6.0+ / mongosh
+ * Database: pos
  * File: database/07_nosql/mongo_analytics.js
+ * 
+ * Collections:
+ *   - Customers       (Imported from cust1.json)
+ *   - CustomerOrders  (Imported from cust2.json)
+ *   - Orders          (Imported from ord.json)
+ *   - Products        (Imported from prod.json)
  * ==============================================================================
  * 
- * Usage in mongosh:
- *   mongosh "mongodb://localhost:27017/pos_analytics" mongo_analytics.js
+ * --- Ingestion Commands (Run in terminal prior to executing this script) ---
  * 
- * Ingestion via mongoimport:
- *   mongoimport --uri="mongodb://localhost:27017/pos_analytics" --collection=orders --file=orders.jsonl
- *   mongoimport --uri="mongodb://localhost:27017/pos_analytics" --collection=customers --file=customers.jsonl
- *   mongoimport --uri="mongodb://localhost:27017/pos_analytics" --collection=products --file=products.jsonl
+ * 1. Import cust1.json -> Customers
+ *    mongoimport --db pos --collection Customers --file cust1.json
+ * 
+ * 2. Import cust2.json -> CustomerOrders
+ *    mongoimport --db pos --collection CustomerOrders --file cust2.json
+ * 
+ * 3. Import ord.json -> Orders
+ *    mongoimport --db pos --collection Orders --file ord.json
+ * 
+ * 4. Import prod.json -> Products
+ *    mongoimport --db pos --collection Products --file prod.json
+ * 
+ * --- Execution ---
+ *   mongosh "mongodb://localhost:27017/pos" mongo_analytics.js
+ * ==============================================================================
  */
 
-const dbName = "pos_analytics";
+const dbName = "pos";
 const db = connect(`mongodb://localhost:27017/${dbName}`);
 
-print("==================================================================");
-print("MultiNode POS: Running MongoDB Aggregation Analytics Suite");
+print("================================================================================");
+print("MultiNode POS: MongoDB Milestone Business Analytics Suite");
 print("Database: " + dbName);
-print("==================================================================");
-
-// ------------------------------------------------------------------------------
-// 1. Index Architecture & Query Optimization
-// ------------------------------------------------------------------------------
-print("\n[1/6] Optimizing Index Architecture...");
-db.orders.createIndex({ "order_id": 1 }, { unique: true });
-db.orders.createIndex({ "customer.customer_id": 1 });
-db.orders.createIndex({ "customer.state": 1 });
-db.orders.createIndex({ "date_placed": 1 });
-db.orders.createIndex({ "items.product_id": 1 });
-db.orders.createIndex({ "total": -1 });
-
-db.customers.createIndex({ "customer_id": 1 }, { unique: true });
-db.customers.createIndex({ "metrics.lifetime_spend": -1 });
-db.customers.createIndex({ "state": 1 });
-print("✓ Compound and single-field indexes verified.");
+print("================================================================================");
 
 
 // ------------------------------------------------------------------------------
-// 2. Pipeline 1: Customer Lifetime Value (CLV) & Tier Segmentation
+// Performance Index Optimization
 // ------------------------------------------------------------------------------
-print("\n[2/6] Executing Pipeline 1: Customer Lifetime Value (CLV) Tier Segmentation...");
-const clvTiers = db.customers.aggregate([
+print("\n[+] Creating indexes for optimized query execution...");
+db.Customers.createIndex({ "Address": "text" });
+db.Customers.createIndex({ "CustomerID": 1 });
+
+db.CustomerOrders.createIndex({ "CustomerID": 1 });
+db.CustomerOrders.createIndex({ "orders.Order Total": -1 });
+
+db.Products.createIndex({ "ProductID": 1 });
+db.Products.createIndex({ "Customers.CustomerID": 1 });
+
+db.Orders.createIndex({ "OrderID": 1 });
+db.Orders.createIndex({ "quantity": -1 });
+db.Orders.createIndex({ "Order Total": -1 });
+print("✓ Indexes created successfully.");
+
+
+// ==============================================================================
+// Question 6: Who are my customers that live in Texas?
+// ==============================================================================
+/**
+ * Collection Chosen: Customers
+ * 
+ * Rationale:
+ *   The Customers collection (from cust1.json) contains lean demographic and
+ *   address documents. It includes Address1, Address2, City, State, and Zip
+ *   combined into a newline-separated string. We choose Customers over
+ *   CustomerOrders because CustomerOrders embeds complete order arrays that
+ *   are unnecessary for simple demographic lookups, consuming excessive memory
+ *   and network bandwidth.
+ * 
+ * Query Explanation:
+ *   - Filter: { "Address": /\bTX\b/ } uses a regular expression matching the
+ *     Texas postal abbreviation "TX" as a distinct token.
+ *   - Projection: { "Customer Name": 1, "Address": 1, "_id": 0 } returns only
+ *     the relevant contact fields while suppressing the MongoDB default _id.
+ */
+print("\n" + "=".repeat(80));
+print("[Q6] Customers Living in Texas (Collection: Customers)");
+print("=".repeat(80));
+
+const q6Results = db.Customers.find(
+  { "Address": /\bTX\b/ },
+  { "CustomerID": 1, "Customer Name": 1, "Address": 1, "_id": 0 }
+).limit(5).toArray();
+
+printjson(q6Results);
+
+
+// ==============================================================================
+// Question 7: Who is my best customer?
+// ==============================================================================
+/**
+ * Collection Chosen: CustomerOrders
+ * 
+ * Rationale:
+ *   CustomerOrders (from cust2.json) denormalizes each customer's complete
+ *   order history into an embedded 'orders' array containing 'Order Total'.
+ *   This allows computing cumulative customer lifetime spend without joining
+ *   the Customer, Order, and OrderLine tables.
+ * 
+ * Query Explanation:
+ *   - Stage 1 ($project): Calculates total lifetime spending per customer by
+ *     using the $sum operator directly across the embedded 'orders.Order Total'
+ *     array, along with counting total orders via $size.
+ *   - Stage 2 ($sort): Sorts descending by total_spend so the highest-grossing
+ *     customer appears first.
+ *   - Stage 3 ($limit): Retrieves the top customer.
+ */
+print("\n" + "=".repeat(80));
+print("[Q7] Best Customer by Lifetime Spend (Collection: CustomerOrders)");
+print("=".repeat(80));
+
+const q7Results = db.CustomerOrders.aggregate([
   {
     $project: {
-      customer_id: 1,
-      name: 1,
-      state: 1,
-      spend: "$metrics.lifetime_spend",
-      orders: "$metrics.lifetime_orders",
-      aov: "$metrics.average_order_value",
-      tier: {
-        $switch: {
-          branches: [
-            { case: { $gte: ["$metrics.lifetime_spend", 10000] }, then: "Tier 1: VIP ($10k+)" },
-            { case: { $gte: ["$metrics.lifetime_spend", 5000] }, then: "Tier 2: Loyal ($5k-$10k)" }
-          ],
-          default: "Tier 3: Standard (<$5k)"
-        }
-      }
-    }
-  },
-  {
-    $group: {
-      _id: "$tier",
-      customer_count: { $sum: 1 },
-      total_revenue: { $sum: "$spend" },
-      avg_lifetime_spend: { $avg: "$spend" },
-      avg_order_count: { $avg: "$orders" }
-    }
-  },
-  { $sort: { total_revenue: -1 } }
-]).toArray();
-
-printjson(clvTiers);
-
-
-// ------------------------------------------------------------------------------
-// 3. Pipeline 2: Monthly Revenue Run-Rate & Basket Size Evolution
-// ------------------------------------------------------------------------------
-print("\n[3/6] Executing Pipeline 2: Monthly Revenue & Basket Size Run-Rate...");
-const monthlyRunRate = db.orders.aggregate([
-  {
-    $project: {
-      year_month: { $substrCP: ["$date_placed", 0, 7] },
-      total: "$total",
-      subtotal: "$subtotal",
-      sales_tax: "$sales_tax",
-      item_count: "$item_count"
-    }
-  },
-  {
-    $group: {
-      _id: "$year_month",
-      orders_count: { $sum: 1 },
-      gross_revenue: { $sum: "$total" },
-      net_subtotal: { $sum: "$subtotal" },
-      total_tax_collected: { $sum: "$sales_tax" },
-      avg_basket_items: { $avg: "$item_count" },
-      avg_order_value: { $avg: "$total" }
-    }
-  },
-  { $sort: { _id: -1 } },
-  { $limit: 12 }
-]).toArray();
-
-printjson(monthlyRunRate);
-
-
-// ------------------------------------------------------------------------------
-// 4. Pipeline 3: Market Basket Affinity Analysis ("Frequently Bought Together")
-// ------------------------------------------------------------------------------
-print("\n[4/6] Executing Pipeline 3: Market Basket Affinity (Product Co-occurrence)...");
-const basketAffinity = db.orders.aggregate([
-  // Filter to multi-item orders
-  { $match: { "items.1": { $exists: true } } },
-  { $unwind: "$items" },
-  {
-    $group: {
-      _id: "$order_id",
-      products: { $push: "$items.product_name" }
-    }
-  },
-  {
-    $project: {
-      basket_size: { $size: "$products" },
-      product_pairs: {
-        $reduce: {
-          input: "$products",
-          initialValue: [],
-          in: { $concatArrays: ["$$value", ["$$this"]] }
-        }
-      }
-    }
-  },
-  { $limit: 10 }
-]).toArray();
-
-printjson(basketAffinity);
-
-
-// ------------------------------------------------------------------------------
-// 5. Pipeline 4: Regional Geographic Performance & Tax Contribution
-// ------------------------------------------------------------------------------
-print("\n[5/6] Executing Pipeline 4: Top 10 Geographic Hubs by Gross Revenue...");
-const regionalPerformance = db.orders.aggregate([
-  { $match: { "customer.state": { $ne: null } } },
-  {
-    $group: {
-      _id: {
-        state: "$customer.state",
-        city: "$customer.city"
-      },
-      order_count: { $sum: 1 },
-      total_sales: { $sum: "$total" },
-      avg_order_total: { $avg: "$total" },
-      total_tax: { $sum: "$sales_tax" }
-    }
-  },
-  { $sort: { total_sales: -1 } },
-  { $limit: 10 },
-  {
-    $project: {
-      location: { $concat: ["$_id.city", ", ", "$_id.state"] },
-      order_count: 1,
-      total_sales: { $round: ["$total_sales", 2] },
-      avg_order_total: { $round: ["$avg_order_total", 2] },
-      effective_tax_pct: {
+      _id: 0,
+      "CustomerID": 1,
+      "Customer Name": 1,
+      "order_count": { $size: { $ifNull: ["$orders", []] } },
+      "lifetime_spend": {
         $round: [
-          { $multiply: [{ $divide: ["$total_tax", "$total_sales"] }, 100] },
+          { $sum: "$orders.Order Total" },
           2
         ]
       }
     }
-  }
+  },
+  { $sort: { "lifetime_spend": -1 } },
+  { $limit: 5 }
 ]).toArray();
 
-printjson(regionalPerformance);
+printjson(q7Results);
 
 
-// ------------------------------------------------------------------------------
-// 6. Pipeline 5: Product Sales Velocity & Inventory Depletion Risk
-// ------------------------------------------------------------------------------
-print("\n[6/6] Executing Pipeline 5: Top 10 Product Sales Velocity & Volume...");
-const productVelocity = db.orders.aggregate([
-  { $unwind: "$items" },
-  {
-    $group: {
-      _id: "$items.product_id",
-      product_name: { $first: "$items.product_name" },
-      units_sold: { $sum: "$items.quantity" },
-      gross_revenue: { $sum: "$items.line_total" },
-      order_appearances: { $sum: 1 }
-    }
-  },
-  { $sort: { units_sold: -1 } },
-  { $limit: 10 },
+// ==============================================================================
+// Question 8: What is my best product?
+// ==============================================================================
+/**
+ * Collection Chosen: Products (for Customer Reach / Popularity)
+ *                AND Orders (for Gross Revenue)
+ * 
+ * Rationale:
+ *   "Best" can be evaluated in two ways:
+ *   1. Market Penetration: The product purchased by the highest number of unique
+ *      customers. The Products collection has a pre-aggregated 'Customers' array,
+ *      making this calculation trivial via $size.
+ *   2. Gross Revenue: The product generating the most revenue (quantity * UnitPrice),
+ *      best answered using the Orders collection.
+ * 
+ * Query Explanation (Perspective 1 - Most Unique Customers):
+ *   - Stage 1 ($project): Projects ProductID, Name, CurrentPrice, and computes
+ *     buyer_reach using $size on the Customers array.
+ *   - Stage 2 ($sort): Orders descending by buyer_reach.
+ *   - Stage 3 ($limit): Top product(s).
+ */
+print("\n" + "=".repeat(80));
+print("[Q8] Best Product by Customer Reach / Popularity (Collection: Products)");
+print("=".repeat(80));
+
+const q8Results = db.Products.aggregate([
   {
     $project: {
-      product_id: "$_id",
-      product_name: 1,
-      units_sold: 1,
-      gross_revenue: { $round: ["$gross_revenue", 2] },
-      order_appearances: 1
+      _id: 0,
+      "ProductID": 1,
+      "Name": 1,
+      "CurrentPrice": 1,
+      "unique_buyers": { $size: { $ifNull: ["$Customers", []] } }
     }
-  }
+  },
+  { $sort: { "unique_buyers": -1 } },
+  { $limit: 5 }
 ]).toArray();
 
-printjson(productVelocity);
+printjson(q8Results);
 
-print("\n==================================================================");
-print("MongoDB Aggregation Analytics Execution Complete.");
-print("==================================================================");
+
+// ==============================================================================
+// Question 9: Which products should I consider no longer carrying?
+// ==============================================================================
+/**
+ * Collection Chosen: Products
+ * 
+ * Rationale:
+ *   Products to discontinue are items with zero or negligible consumer demand.
+ *   The Products collection embeds the array of all customers who have ever
+ *   purchased each product. An empty array ({ $size: 0 }) indicates zero lifetime
+ *   sales, representing dormant inventory that ties up warehouse space.
+ * 
+ * Query Explanation:
+ *   - Filter 1: Find products where Customers array is empty ($size: 0).
+ *   - Alternative: Sort products ascending by the size of the Customers array
+ *     to identify underperforming items with the fewest historical buyers.
+ */
+print("\n" + "=".repeat(80));
+print("[Q9] Discontinuation Candidates / Underperforming Products (Collection: Products)");
+print("=".repeat(80));
+
+const q9Results = db.Products.aggregate([
+  {
+    $project: {
+      _id: 0,
+      "ProductID": 1,
+      "Name": 1,
+      "CurrentPrice": 1,
+      "historical_buyers": { $size: { $ifNull: ["$Customers", []] } }
+    }
+  },
+  { $sort: { "historical_buyers": 1 } },
+  { $limit: 5 }
+]).toArray();
+
+printjson(q9Results);
+
+
+// ==============================================================================
+// Question 10: How will I find all customers that purchased a product in case of a recall?
+// ==============================================================================
+/**
+ * Collection Chosen: Products
+ * 
+ * Rationale:
+ *   In a relational database, finding all purchasers of a recalled product
+ *   requires joining Product -> OrderLine -> Order -> Customer across millions
+ *   of records. In MongoDB, the Products collection already maintains a pre-
+ *   aggregated list of all customers who purchased that item directly inside
+ *   the document. A single indexed lookup on ProductID instantly returns the
+ *   complete recall contact list.
+ * 
+ * Query Explanation:
+ *   - Stage 1 ($match): Filters by the target recalled ProductID (e.g., 0).
+ *   - Stage 2 ($unwind): Flattens the embedded Customers array into individual
+ *     customer notification records.
+ *   - Stage 3 ($project): Produces a clean contact list for emergency notices.
+ */
+print("\n" + "=".repeat(80));
+print("[Q10] Product Recall Contact List for ProductID: 0 (Collection: Products)");
+print("=".repeat(80));
+
+const q10Results = db.Products.aggregate([
+  { $match: { "ProductID": 0 } },
+  { $unwind: "$Customers" },
+  {
+    $project: {
+      _id: 0,
+      "RecalledProductID": "$ProductID",
+      "ProductName": "$Name",
+      "CustomerID": "$Customers.CustomerID",
+      "CustomerName": "$Customers.Customer Name"
+    }
+  },
+  { $limit: 5 }
+]).toArray();
+
+printjson(q10Results);
+
+
+// ==============================================================================
+// Question 11: Do any of your orders look fraudulent?
+// ==============================================================================
+/**
+ * Collection Chosen: Orders
+ * 
+ * Rationale:
+ *   The Orders collection (from ord.json) models transactional line-item purchases
+ *   with order totals, buyer information, and unit quantities. Fraud detection
+ *   requires inspecting transactional anomalies such as:
+ *   1. Extreme order quantities (bulk hoarding or script attacks).
+ *   2. Suspiciously large dollar amounts exceeding normal purchasing patterns.
+ * 
+ * Query Explanation:
+ *   - Filter: Queries for orders where line-item quantity exceeds standard retail
+ *     thresholds (e.g., quantity >= 10) or Order Total exceeds normal limits.
+ *   - Sort: Orders descending by quantity to highlight the most egregious anomalies.
+ */
+print("\n" + "=".repeat(80));
+print("[Q11] Fraudulent Order Detection - Anomaly Inspection (Collection: Orders)");
+print("=".repeat(80));
+
+const q11Results = db.Orders.find(
+  {
+    $or: [
+      { "quantity": { $gte: 10 } },
+      { "Order Total": { $gte: 10000.00 } }
+    ]
+  },
+  {
+    _id: 0,
+    "OrderID": 1,
+    "Order Date": 1,
+    "Order Total": 1,
+    "buyer": 1,
+    "product": 1,
+    "quantity": 1
+  }
+).sort({ "quantity": -1, "Order Total": -1 }).limit(5).toArray();
+
+printjson(q11Results);
+
+print("\n" + "=".repeat(80));
+print("✓ MongoDB Analytics Suite Execution Complete.");
+print("=".repeat(80));

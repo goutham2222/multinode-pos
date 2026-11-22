@@ -1,137 +1,159 @@
 -- ==============================================================================
--- MultiNode POS: Phase 8 - NoSQL Denormalization & Document Transformation
--- Target DBMS: MariaDB (Relational) -> MongoDB (Document Analytics)
--- Database: pos
--- File: database/07_nosql/json.sql
+-- Student Name: Goutham
+-- Course: Distributed Database Systems & Architecture
+-- Assignment: JSON Milestone - Relational to NoSQL Document Extraction
+-- Attestation: I declare that this assignment is my own work in accordance with
+--              the academic integrity policy.
 -- ==============================================================================
+
+source trig.sql;
 
 USE `pos`;
 
 -- ------------------------------------------------------------------------------
--- 1. View: v_Document_Orders
--- Denormalizes orders into self-contained hierarchical JSON documents.
--- Embeds customer demographics and nested array of order line items.
+-- Milestone Overview & Execution Notes:
+-- This script transforms normalized relational data from the MultiNode POS
+-- schema into four denormalized JSON document streams formatted as JSON Lines
+-- (one valid JSON object per row, without separating commas between root objects)
+-- ready for direct bulk ingestion into MongoDB via mongoimport.
+--
+-- File Output Options:
+-- 1. MariaDB Server-Side INTO OUTFILE:
+--    By default, MariaDB writes files to the database directory (/var/lib/mysql/pos/).
+--    The SELECT statements below include INTO OUTFILE clauses.
+--
+-- 2. Client-Side Streaming CLI (if @@secure_file_priv restricts server writes):
+--    mariadb -h 20.169.214.104 -u pos_app -p pos -N -B -e "..." > cust1.json
+--
+-- 3. Automated Exporter:
+--    python3 database/07_nosql/export_to_mongo.py
 -- ------------------------------------------------------------------------------
-DROP VIEW IF EXISTS `v_Document_Orders`;
-CREATE VIEW `v_Document_Orders` AS
-SELECT 
-  o.OrderID AS order_id,
-  JSON_OBJECT(
-    "order_id", o.OrderID,
-    "date_placed", DATE_FORMAT(o.datePlaced, "%Y-%m-%d"),
-    "date_shipped", DATE_FORMAT(o.dateShipped, "%Y-%m-%d"),
-    "status", IF(o.dateShipped IS NULL, "Processing", "Shipped"),
-    "subtotal", CAST(COALESCE(o.OrderSubtotal, 0.00) AS DOUBLE),
-    "sales_tax", CAST(COALESCE(o.SalesTax, 0.00) AS DOUBLE),
-    "total", CAST(COALESCE(o.OrderTotal, 0.00) AS DOUBLE),
-    "customer", JSON_OBJECT(
-      "customer_id", c.CustomerID,
-      "name", CONCAT(c.FirstName, " ", c.LastName),
-      "first_name", c.FirstName,
-      "last_name", c.LastName,
-      "email", c.Email,
-      "address", c.Address1,
-      "zip", c.Zip,
-      "city", ct.City,
-      "state", ct.State
-    ),
-    "items", COALESCE(
-      (
-        SELECT JSON_ARRAYAGG(
-          JSON_OBJECT(
-            "product_id", ol.ProductID,
-            "product_name", p.Name,
-            "quantity", ol.Quantity,
-            "unit_price", CAST(ol.UnitPrice AS DOUBLE),
-            "line_total", CAST(ol.LineTotal AS DOUBLE)
-          )
-        )
-        FROM OrderLine ol
-        JOIN Product p ON ol.ProductID = p.ProductID
-        WHERE ol.OrderID = o.OrderID
-      ),
-      JSON_ARRAY()
-    ),
-    "item_count", (
-      SELECT COALESCE(SUM(ol.Quantity), 0)
-      FROM OrderLine ol
-      WHERE ol.OrderID = o.OrderID
+
+
+-- ==============================================================================
+-- Aggregate 1: cust1.json
+-- Focuses on Customers.
+-- Includes full address information formatted with \n between lines.
+-- Omits Address2 if it is NULL or empty.
+-- Combines FirstName and LastName into "Customer Name".
+-- ==============================================================================
+
+SELECT JSON_OBJECT(
+  'CustomerID', c.CustomerID,
+  'Customer Name', CONCAT(c.FirstName, ' ', c.LastName),
+  'Address', CONCAT_WS('\n', c.Address1, NULLIF(c.Address2, ''), ct.City, ct.State, c.Zip)
+)
+FROM Customer c
+JOIN City ct ON c.Zip = ct.Zip
+INTO OUTFILE 'cust1.json';
+
+
+-- ==============================================================================
+-- Aggregate 2: prod.json
+-- Focuses on Products and the customers who purchased them.
+-- Includes ProductID, current price, and product name.
+-- Includes an array of customer objects { CustomerID, "Customer Name" }.
+-- ==============================================================================
+
+SELECT JSON_OBJECT(
+  'ProductID', p.ProductID,
+  'CurrentPrice', CAST(p.CurrentPrice AS DOUBLE),
+  'Name', p.Name,
+  'Customers', IF(sub.CustomerID IS NULL, JSON_ARRAY(), JSON_ARRAYAGG(
+    JSON_OBJECT(
+      'CustomerID', sub.CustomerID,
+      'Customer Name', CONCAT(sub.FirstName, ' ', sub.LastName)
     )
-  ) AS document_json
+  ))
+)
+FROM Product p
+LEFT JOIN (
+  SELECT DISTINCT ol.ProductID, c.CustomerID, c.FirstName, c.LastName
+  FROM OrderLine ol
+  JOIN `Order` o ON ol.OrderID = o.OrderID
+  JOIN Customer c ON o.CustomerID = c.CustomerID
+) sub ON p.ProductID = sub.ProductID
+GROUP BY p.ProductID, p.Name, p.CurrentPrice
+INTO OUTFILE 'prod.json';
+
+
+-- ==============================================================================
+-- Aggregate 3: ord.json
+-- Focuses on Orders.
+-- Each order represented with embedded buyer object and product object.
+-- Includes quantity.
+-- ==============================================================================
+
+SELECT JSON_OBJECT(
+  'OrderID', o.OrderID,
+  'Order Date', DATE_FORMAT(o.datePlaced, '%Y-%m-%d'),
+  'Order Total', CAST(COALESCE(o.OrderTotal, 0.00) AS DOUBLE),
+  'buyer', JSON_OBJECT(
+    'CustomerID', c.CustomerID,
+    'Customer Name', CONCAT(c.FirstName, ' ', c.LastName)
+  ),
+  'product', JSON_OBJECT(
+    'ProductID', p.ProductID,
+    'Product Name', p.Name,
+    'UnitPrice', CAST(ol.UnitPrice AS DOUBLE)
+  ),
+  'quantity', ol.Quantity
+)
 FROM `Order` o
 JOIN Customer c ON o.CustomerID = c.CustomerID
-LEFT JOIN City ct ON c.Zip = ct.Zip;
+JOIN OrderLine ol ON o.OrderID = ol.OrderID
+JOIN Product p ON ol.ProductID = p.ProductID
+INTO OUTFILE 'ord.json';
 
 
--- ------------------------------------------------------------------------------
--- 2. View: v_Document_Customers
--- Denormalizes customers into analytical profile documents.
--- Embeds address details and precomputed customer lifetime metrics.
--- ------------------------------------------------------------------------------
-DROP VIEW IF EXISTS `v_Document_Customers`;
-CREATE VIEW `v_Document_Customers` AS
-SELECT 
-  c.CustomerID AS customer_id,
-  JSON_OBJECT(
-    "customer_id", c.CustomerID,
-    "name", CONCAT(c.FirstName, " ", c.LastName),
-    "first_name", c.FirstName,
-    "last_name", c.LastName,
-    "email", c.Email,
-    "address", c.Address1,
-    "zip", c.Zip,
-    "city", ct.City,
-    "state", ct.State,
-    "metrics", JSON_OBJECT(
-      "lifetime_orders", COUNT(o.OrderID),
-      "lifetime_spend", CAST(COALESCE(SUM(o.OrderTotal), 0.00) AS DOUBLE),
-      "average_order_value", CAST(IF(COUNT(o.OrderID) > 0, ROUND(SUM(o.OrderTotal) / COUNT(o.OrderID), 2), 0.00) AS DOUBLE),
-      "first_order_date", DATE_FORMAT(MIN(o.datePlaced), "%Y-%m-%d"),
-      "latest_order_date", DATE_FORMAT(MAX(o.datePlaced), "%Y-%m-%d")
-    )
-  ) AS document_json
-FROM Customer c
-LEFT JOIN City ct ON c.Zip = ct.Zip
-LEFT JOIN `Order` o ON c.CustomerID = o.CustomerID
-GROUP BY c.CustomerID, c.FirstName, c.LastName, c.Email, c.Address1, c.Zip, ct.City, ct.State;
+-- ==============================================================================
+-- Aggregate 4: cust2.json
+-- Focuses on Customers and their complete order history.
+-- Includes all demographic and address information from cust1.json.
+-- Adds an array of each order placed by the customer, including:
+--   - Order Total
+--   - Order Date
+--   - Shipping Date
+--   - Items in the order:
+--       - Product ID
+--       - Quantity
+--       - Product Name
+-- ==============================================================================
 
-
--- ------------------------------------------------------------------------------
--- 3. View: v_Document_Products
--- Denormalizes products into catalog documents with price audit histories.
--- ------------------------------------------------------------------------------
-DROP VIEW IF EXISTS `v_Document_Products`;
-CREATE VIEW `v_Document_Products` AS
-SELECT 
-  p.ProductID AS product_id,
-  JSON_OBJECT(
-    "product_id", p.ProductID,
-    "name", p.Name,
-    "current_price", CAST(p.CurrentPrice AS DOUBLE),
-    "qty_on_hand", p.QtyOnHand,
-    "price_audit_history", COALESCE(
-      (
-        SELECT JSON_ARRAYAGG(
-          JSON_OBJECT(
-            "change_id", ph.ChangeID,
-            "old_price", CAST(ph.OldPrice AS DOUBLE),
-            "new_price", CAST(ph.NewPrice AS DOUBLE),
-            "timestamp", DATE_FORMAT(ph.TS, "%Y-%m-%d %H:%i:%s")
+SELECT JSON_OBJECT(
+  'CustomerID', c.CustomerID,
+  'Customer Name', CONCAT(c.FirstName, ' ', c.LastName),
+  'Address', CONCAT_WS('\n', c.Address1, NULLIF(c.Address2, ''), ct.City, ct.State, c.Zip),
+  'orders', COALESCE(
+    (
+      SELECT JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'Order Total', CAST(COALESCE(o.OrderTotal, 0.00) AS DOUBLE),
+          'Order Date', DATE_FORMAT(o.datePlaced, '%Y-%m-%d'),
+          'Shipping Date', DATE_FORMAT(o.dateShipped, '%Y-%m-%d'),
+          'items', COALESCE(
+            (
+              SELECT JSON_ARRAYAGG(
+                JSON_OBJECT(
+                  'Product ID', ol.ProductID,
+                  'Quantity', ol.Quantity,
+                  'Product Name', p.Name
+                )
+              )
+              FROM OrderLine ol
+              JOIN Product p ON ol.ProductID = p.ProductID
+              WHERE ol.OrderID = o.OrderID
+            ),
+            JSON_ARRAY()
           )
         )
-        FROM PriceHistory ph
-        WHERE ph.ProductID = p.ProductID
-      ),
-      JSON_ARRAY()
-    )
-  ) AS document_json
-FROM Product p;
-
-
--- ------------------------------------------------------------------------------
--- 4. Sample Extraction Queries for CLI Export
--- Run via:
--- mariadb -u pos_app -p -e "SELECT document_json FROM pos.v_Document_Orders" -N -B > orders.jsonl
--- mariadb -u pos_app -p -e "SELECT document_json FROM pos.v_Document_Customers" -N -B > customers.jsonl
--- ------------------------------------------------------------------------------
-SELECT "NoSQL Views v_Document_Orders, v_Document_Customers, v_Document_Products created successfully." AS Status;
+      )
+      FROM `Order` o
+      WHERE o.CustomerID = c.CustomerID
+    ),
+    JSON_ARRAY()
+  )
+)
+FROM Customer c
+JOIN City ct ON c.Zip = ct.Zip
+INTO OUTFILE 'cust2.json';
