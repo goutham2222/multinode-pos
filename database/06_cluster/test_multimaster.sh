@@ -46,6 +46,9 @@ done
 # ------------------------------------------------------------------------------
 echo ""
 echo "[Test 2/4] Testing Write on Node 1 -> Read on Node 2 & Node 3..."
+echo "Ensuring test database and tables exist on cluster..."
+ssh -o StrictHostKeyChecking=no "azureuser@$NODE1_IP" "sudo mariadb -e \"CREATE DATABASE IF NOT EXISTS pos; CREATE TABLE IF NOT EXISTS pos.Product (ProductID INT PRIMARY KEY, Name VARCHAR(255), CurrentPrice DECIMAL(10,2), QtyOnHand INT); CREATE TABLE IF NOT EXISTS pos.PriceHistory (ChangeID INT AUTO_INCREMENT PRIMARY KEY, ProductID INT, OldPrice DECIMAL(10,2), NewPrice DECIMAL(10,2), ChangeDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP);\""
+
 echo "Inserting test product 80001 on Node 1..."
 exec_sql "$NODE1_IP" "INSERT INTO Product (ProductID, Name, CurrentPrice, QtyOnHand) VALUES (80001, 'Galera Node1 Item', 99.95, 100) ON DUPLICATE KEY UPDATE CurrentPrice = VALUES(CurrentPrice);"
 
