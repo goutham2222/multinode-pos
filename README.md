@@ -475,7 +475,7 @@ The application features a dedicated **SQL Injection Defense & Inspection Playgr
       (f"{term}%",)
   )
   ```
-All production queries across FastAPI use parameterized statement execution via `pymysql` / `mysql.connector`, neutralizing SQL injection regardless of user payload characters.
+All production queries across FastAPI use parameterized statement execution via `pymysql`, neutralizing SQL injection regardless of user payload characters.
 
 ---
 
