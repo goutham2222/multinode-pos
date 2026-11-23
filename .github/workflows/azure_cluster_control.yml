@@ -1,0 +1,61 @@
+name: 🛑 Azure Cluster Management & Teardown
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Cluster Action'
+        required: true
+        type: choice
+        options:
+          - 'deallocate'
+          - 'start'
+          - 'status'
+          - 'teardown'
+        default: 'deallocate'
+      resource_group:
+        description: 'Azure Resource Group'
+        required: true
+        default: 'rg-multinode-pos'
+
+jobs:
+  manage_cluster:
+    name: Manage Azure Cluster State
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check Azure Credentials
+        id: check_creds
+        env:
+          AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          if [ -n "$AZURE_CREDS" ]; then
+            echo "has_azure_login=true" >> $GITHUB_OUTPUT
+            echo "✓ Found AZURE_CREDENTIALS in repository secrets."
+          else
+            echo "has_azure_login=false" >> $GITHUB_OUTPUT
+            echo "ℹ Notice: AZURE_CREDENTIALS secret not found. To manage Azure resources from GitHub Actions, configure AZURE_CREDENTIALS (service principal JSON) in Settings -> Secrets and variables -> Actions."
+          fi
+
+      - name: Azure CLI Login
+        if: steps.check_creds.outputs.has_azure_login == 'true'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Execute Cluster Control Action
+        if: steps.check_creds.outputs.has_azure_login == 'true'
+        env:
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          if [ "$ACTION" = "teardown" ]; then
+            echo "⚠️ Executing Resource Group Deletion for ${RESOURCE_GROUP}..."
+            az group delete --name "${RESOURCE_GROUP}" --yes --no-wait
+            echo "✓ Teardown initiated. All cloud resources will be permanently removed."
+          else
+            bash infra/azure/cluster_control.sh "$ACTION"
+          fi
