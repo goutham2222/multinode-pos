@@ -358,6 +358,22 @@ ssh azureuser@<NODE3_IP> "bash ~/database/06_cluster/join_peer.sh 3"
 # 7. Enable Causal Consistency & Run Multi-Master Replication Test
 bash database/06_cluster/enable_strict_consistency.sh <NODE1_IP> <NODE2_IP> <NODE3_IP>
 bash database/06_cluster/test_multimaster.sh <NODE1_IP> <NODE2_IP> <NODE3_IP>
+
+# 8. Upload Staging Datasets & Ingest Database Schema into Cluster
+ssh azureuser@<NODE1_IP> "mkdir -p ~/data/raw"
+scp data/raw/*.csv azureuser@<NODE1_IP>:~/data/raw/
+ssh azureuser@<NODE1_IP> "bash ~/database/02_etl/run_phase2.sh"
+ssh azureuser@<NODE1_IP> "bash ~/database/03_views/run_phase3.sh"
+ssh azureuser@<NODE1_IP> "bash ~/database/04_routines/run_phase4.sh"
+ssh azureuser@<NODE1_IP> "bash ~/database/05_triggers/run_phase5.sh"
+
+# 9. Deploy Full-Stack Web Application to Primary Node (Node 1)
+export TARGET_HOST="<NODE1_IP>"
+bash infra/azure/deploy_app.sh
+
+# 10. Access Live Production Application
+# Web Dashboard: http://<NODE1_IP>:8000/
+# Swagger Docs:  http://<NODE1_IP>:8000/docs
 ```
 
 ---
