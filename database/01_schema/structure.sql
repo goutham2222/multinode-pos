@@ -10,6 +10,11 @@ CREATE DATABASE IF NOT EXISTS `pos`
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
+-- 1.1 Application User & Privileges
+CREATE USER IF NOT EXISTS 'pos_app'@'%' IDENTIFIED BY 'ChangeMeSecure123!';
+GRANT ALL PRIVILEGES ON pos.* TO 'pos_app'@'%';
+FLUSH PRIVILEGES;
+
 USE `pos`;
 
 -- 2. Drop existing tables in reverse dependency order
