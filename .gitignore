@@ -46,10 +46,4 @@ data/nosql_export/
 ehthumbs.db
 Thumbs.db
 
-# Local-Only Architectural & Interview Documentation Deliverables (DO NOT COMMIT)
-CODEBASE_WALKTHROUGH.md
-SYSTEM_CONCEPTS_AND_TECH_STACK.md
-INTERVIEW_PREPARATION_GUIDE.md
-CONFIGURATION_COMMANDS_REFERENCE.md
-docs/
 
