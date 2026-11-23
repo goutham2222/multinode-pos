@@ -91,6 +91,11 @@ jobs:
             echo "ℹ Notice: AZURE_CREDENTIALS / AZURE_SSH_KEY not yet configured in GitHub Secrets."
             echo "All automated tests have passed. Configure repository secrets to enable push-button continuous deployment."
           fi
+          if [ -n "$AZURE_CREDS" ]; then
+            echo "has_azure_login=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_azure_login=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Frontend Production Bundle
         if: steps.check_creds.outputs.has_creds == 'true'
@@ -99,7 +104,7 @@ jobs:
           npm --prefix frontend run build
 
       - name: Azure CLI Login
-        if: steps.check_creds.outputs.has_creds == 'true' && secrets.AZURE_CREDENTIALS != ''
+        if: steps.check_creds.outputs.has_azure_login == 'true'
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
