@@ -77,24 +77,45 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Check Deployment Credentials
+        id: check_creds
+        env:
+          AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS }}
+          AZURE_KEY: ${{ secrets.AZURE_SSH_KEY }}
+        run: |
+          if [ -n "$AZURE_CREDS" ] || [ -n "$AZURE_KEY" ]; then
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+            echo "✓ Found deployment credentials in GitHub Secrets."
+          else
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "ℹ Notice: AZURE_CREDENTIALS / AZURE_SSH_KEY not yet configured in GitHub Secrets."
+            echo "All automated tests have passed. Configure repository secrets to enable push-button continuous deployment."
+          fi
+
       - name: Build Frontend Production Bundle
+        if: steps.check_creds.outputs.has_creds == 'true'
         run: |
           npm --prefix frontend install
           npm --prefix frontend run build
 
       - name: Azure CLI Login
-        if: env.AZURE_CREDENTIALS != ''
+        if: steps.check_creds.outputs.has_creds == 'true' && secrets.AZURE_CREDENTIALS != ''
         uses: azure/login@v2
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Execute Push-Button Deployment Script
+        if: steps.check_creds.outputs.has_creds == 'true'
         env:
           RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP || 'rg-multinode-pos' }}
           VM_NAME: ${{ secrets.AZURE_VM_NAME || 'vm-pos-node1' }}
           TARGET_HOST: ${{ secrets.AZURE_TARGET_HOST || '20.169.214.104' }}
           ADMIN_USER: ${{ secrets.AZURE_ADMIN_USER || 'azureuser' }}
+          SSH_KEY_DATA: ${{ secrets.AZURE_SSH_KEY }}
         run: |
+          if [ -n "$SSH_KEY_DATA" ]; then
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY_DATA" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
           bash infra/azure/deploy_app.sh

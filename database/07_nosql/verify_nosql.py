@@ -21,15 +21,21 @@ import re
 from collections import defaultdict
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/nosql_export"))
+SAMPLE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/nosql_sample"))
+
+# Resolve active dataset directory: prefer full export if present; fallback to tracked sample fixtures
+ACTIVE_DIR = DATA_DIR if os.path.exists(os.path.join(DATA_DIR, "cust1.json")) else SAMPLE_DIR
+
 FILES = ["cust1.json", "prod.json", "ord.json", "cust2.json"]
 
 def check_files_exist():
     print("=" * 75)
     print("TEST SUITE 1: FILE EXISTENCE & INTEGRITY CHECK")
+    print(f"Active Data Directory: {ACTIVE_DIR}")
     print("=" * 75)
     all_ok = True
     for f in FILES:
-        p = os.path.join(DATA_DIR, f)
+        p = os.path.join(ACTIVE_DIR, f)
         if not os.path.exists(p):
             print(f"[FAIL] Missing file: {p}")
             all_ok = False
@@ -39,7 +45,7 @@ def check_files_exist():
     return all_ok
 
 def load_and_validate_jsonl(filename, required_keys):
-    path = os.path.join(DATA_DIR, filename)
+    path = os.path.join(ACTIVE_DIR, filename)
     docs = []
     invalid_lines = 0
     with open(path, "r", encoding="utf-8") as fh:
