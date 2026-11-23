@@ -133,14 +133,71 @@ RESTART_SCRIPT=$(mktemp /tmp/restart_pos_XXXXXX.sh)
 cat << 'SERVICE_EOF' > "${RESTART_SCRIPT}"
 #!/bin/bash
 set -euo pipefail
+
+# Ensure python3-venv is installed
+if ! dpkg -s python3-venv >/dev/null 2>&1; then
+  sudo apt-get update -y
+  sudo apt-get install -y python3-venv python3-pip
+fi
+
+# Provision virtual environment if missing
+if [ ! -d "/opt/multinode-pos/backend/venv" ]; then
+  python3 -m venv /opt/multinode-pos/backend/venv
+fi
+
+# Provision production .env if missing
+if [ ! -f "/opt/multinode-pos/backend/.env" ]; then
+  cat << 'ENV_EOF' > /opt/multinode-pos/backend/.env
+DB_HOST_PRIMARY=10.0.1.4
+DB_HOSTS_CLUSTER=10.0.1.4,10.0.1.5,10.0.1.6
+DB_PORT=3306
+DB_USER=pos_app
+DB_PASSWORD=ChangeMeSecure123!
+DB_NAME=pos
+DB_POOL_MIN_SIZE=5
+DB_POOL_MAX_SIZE=20
+API_HOST=0.0.0.0
+API_PORT=8000
+ENVIRONMENT=production
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+MONGO_URI=mongodb://10.0.1.4:27017
+MONGO_DB=pos_analytics
+ENV_EOF
+fi
+
 # Install or update backend dependencies
 if [ -f "/opt/multinode-pos/backend/requirements.txt" ]; then
+  /opt/multinode-pos/backend/venv/bin/pip install --upgrade pip
   /opt/multinode-pos/backend/venv/bin/pip install --quiet --no-cache-dir -r /opt/multinode-pos/backend/requirements.txt
 fi
 
+# Create systemd service unit if missing
+if [ ! -f "/etc/systemd/system/multinode-pos.service" ]; then
+  sudo tee /etc/systemd/system/multinode-pos.service > /dev/null << 'UNIT_EOF'
+[Unit]
+Description=MultiNode POS FastAPI & Web Application
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=azureuser
+WorkingDirectory=/opt/multinode-pos/backend
+ExecStart=/opt/multinode-pos/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=3
+EnvironmentFile=/opt/multinode-pos/backend/.env
+
+[Install]
+WantedBy=multi-user.target
+UNIT_EOF
+  sudo systemctl daemon-reload
+  sudo systemctl enable multinode-pos.service
+fi
+
 # Restart FastAPI service
+sudo systemctl daemon-reload
 sudo systemctl restart multinode-pos.service
-sleep 2
+sleep 3
 
 # Verify service is running
 systemctl is-active --quiet multinode-pos.service
