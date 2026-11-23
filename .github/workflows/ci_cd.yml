@@ -1,0 +1,100 @@
+name: MultiNode POS - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_to_azure:
+        description: 'Deploy to Azure after tests pass?'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  # ============================================================================
+  # 1. Automated Test Suite (Pytest, Frontend Build, NoSQL Verification)
+  # ============================================================================
+  test:
+    name: Run Automated Tests & Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest httpx
+
+      - name: Run Backend Pytest Suite
+        env:
+          PYTHONPATH: backend
+        run: |
+          pytest backend/tests/ -v --tb=short
+
+      - name: Install Frontend Dependencies & Build Bundle
+        run: |
+          npm --prefix frontend ci || npm --prefix frontend install
+          npm --prefix frontend run build
+
+      - name: Verify NoSQL Milestone Datasets & Queries
+        run: |
+          python3 database/07_nosql/verify_nosql.py
+
+  # ============================================================================
+  # 2. Automated Azure Deployment
+  # ============================================================================
+  deploy:
+    name: Deploy to Azure Galera Cluster
+    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.deploy_to_azure == true)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20 (for local artifact packaging)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend Production Bundle
+        run: |
+          npm --prefix frontend install
+          npm --prefix frontend run build
+
+      - name: Azure CLI Login
+        if: env.AZURE_CREDENTIALS != ''
+        uses: azure/login@v2
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Execute Push-Button Deployment Script
+        env:
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP || 'rg-multinode-pos' }}
+          VM_NAME: ${{ secrets.AZURE_VM_NAME || 'vm-pos-node1' }}
+          TARGET_HOST: ${{ secrets.AZURE_TARGET_HOST || '20.169.214.104' }}
+          ADMIN_USER: ${{ secrets.AZURE_ADMIN_USER || 'azureuser' }}
+        run: |
+          bash infra/azure/deploy_app.sh
