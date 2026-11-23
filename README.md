@@ -49,7 +49,6 @@ MultiNode POS is an enterprise-grade, distributed Point-of-Sale (POS) transactio
 ```text
 multinode-pos/
 ├── README.md                            # Complete setup guide and project documentation
-├── DEBUG_LOG.md                         # Permanent defect and error tracking log ([ERR-XXX])
 ├── .gitignore                           # Exclusions for raw datasets, keys, caches, venv
 │
 ├── .github/                             # GitHub Actions CI/CD Workflows
