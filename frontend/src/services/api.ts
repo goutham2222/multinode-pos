@@ -1,6 +1,10 @@
 import { ClusterStatus, Product, Customer, Order, SqlDemoResult } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+// Dynamic API base: relative '/api/v1' for production/cloud deployment,
+// or explicit localhost:8000 when running under local Vite dev server (port 5173).
+const API_BASE = (typeof window !== 'undefined' && window.location.port !== '5173')
+  ? '/api/v1'
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1');
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {

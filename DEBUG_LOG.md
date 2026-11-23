@@ -118,12 +118,41 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Intercepted MariaDB error `1264` within the database exception handler and mapped it to a clear HTTP 400 Bad Request response with error code `QUANTITY_OVERFLOW`.
 - **In Plain English:** Entering an enormous quantity in checkout caused the total price to overflow the database number limit, resulting in a database crash error. We intercepted this database error and turned it into a clean "Quantity exceeds maximum allowable line total limit" message.
 
-### [ERR-017] Uninitialized Variable Nullability in trig_OrderLineSyncTotalsDelete
-- **Timestamp:** 2026-11-20 / Phase 7 (Full-Stack Application Layer)
-- **Component:** `database/05_triggers/trig.sql` (`trig_OrderLineSyncTotalsDelete`)
-- **Technical Issue:** In `trig_OrderLineSyncTotalsDelete`, local variable `DECLARE v_new_tax DECIMAL(7,2);` defaulted to `NULL`. When all line items for an order were deleted or when a calculation resulted in null, `v_new_tax` remained `NULL`, triggering MariaDB error `1048 ("Column 'SalesTax' cannot be null")` upon updating the parent `Order` record.
-- **Resolution:** Initialized all local trigger variables with defaults (`DEFAULT 0.00` and `DEFAULT 0.000000`) and wrapped the calculation with `COALESCE(ROUND(...), 0.00)` across insert, update, and delete triggers.
-- **In Plain English:** Deleting all items from an order caused the sales tax calculation inside the database trigger to turn into null, which failed because sales tax cannot be blank. We added zero-fallbacks inside the triggers so the tax safely updates to $0.00 instead of crashing.
+### [ERR-018] Missing NoSQL Export Files in Clean GitHub Actions Runner
+- **Timestamp:** 2026-11-22 / CI/CD Automation
+- **Component:** `database/07_nosql/verify_nosql.py`, `.github/workflows/ci.yml`
+- **Technical Issue:** `data/nosql_export/` was gitignored (32 MB), causing `verify_nosql.py` to fail in fresh GitHub Actions environments with `[FAIL] Missing file: .../data/nosql_export/cust1.json`.
+- **Resolution:** Added lightweight tracked sample fixtures under `data/nosql_sample/` (50 valid records per collection, ~120 KB total) and added fallback logic in `verify_nosql.py` to use `data/nosql_sample/` when `data/nosql_export/` is absent.
+- **In Plain English:** The big 32MB data files were excluded from git, which caused automated tests in the cloud to fail looking for them. We bundled a small, lightweight sample dataset into the repo so automated tests pass immediately in any fresh environment.
+
+### [ERR-019] GitHub Actions Syntax Error Evaluating Secrets in Step Conditionals
+- **Timestamp:** 2026-11-22 / CI/CD Automation
+- **Component:** `.github/workflows/ci_cd.yml`
+- **Technical Issue:** Expressions such as `if: ... && secrets.AZURE_CREDENTIALS != ''` caused workflow failure: `Unrecognized named-value: 'secrets'`.
+- **Resolution:** Moved secrets inspection inside the step's environment variables (`AZURE_CREDS: ${{ secrets.AZURE_CREDENTIALS }}`) and exposed boolean flags via `$GITHUB_OUTPUT`.
+- **In Plain English:** GitHub Actions doesn't allow checking secrets directly inside `if:` conditions. We moved the check into a shell step that sets an output flag for downstream steps to read.
+
+### [ERR-020] Pytest Connection Timeout on Deallocated Azure VMs
+- **Timestamp:** 2026-11-22 / Automated Test Suite
+- **Component:** `backend/tests/conftest.py`
+- **Technical Issue:** When Azure VMs were deallocated to halt cloud costs ($0.00/hr), running `pytest` caused 74-second TCP connection timeouts attempting to connect to offline MariaDB port 3306.
+- **Resolution:** Created `backend/tests/conftest.py` with an auto-sensing fixture `is_cluster_online()`. If port 3306 is unreachable, live database integration tests are gracefully marked as skipped while application unit tests (`test_health`) pass immediately (0.25s).
+- **In Plain English:** When we shut down cloud machines to save money, our test suite kept waiting for them and timed out. We added a smart checker that detects whether cloud servers are sleeping and skips live cloud tests safely.
+
+### [ERR-021] Hardcoded localhost:8000 in Vite Frontend Bundle Causing Blank UI on Cloud Deployment
+- **Timestamp:** 2026-11-23 / Full-Stack Cloud Deployment
+- **Component:** `frontend/src/services/api.ts`, `frontend/.env`, `frontend/.env.example`
+- **Technical Issue:** `VITE_API_BASE_URL` was configured as `http://localhost:8000/api/v1` in `frontend/.env`. When Vite compiled the production bundle on the developer's laptop, this URL was hardcoded into JS assets. In the user's browser, requests went to `localhost:8000` rather than the public Azure IP, resulting in a blank UI with zero data loaded.
+- **Resolution:** Updated `api.ts` to dynamically resolve `/api/v1` (relative path) whenever the application is accessed on non-5173 ports (such as port 8000 on Azure), allowing the browser to query the host it was served from.
+- **In Plain English:** The website interface had the local address hardcoded into its build, so when deployed to the cloud, your browser tried to fetch data from your own laptop instead of the cloud server. We made the data requests relative so it automatically talks to the cloud server it was loaded from.
+
+### [ERR-022] Missing Systemd Unit, Python Venv, and BSD mktemp Incompatibility in deploy_app.sh
+- **Timestamp:** 2026-11-23 / DevOps & Cloud Infrastructure
+- **Component:** `infra/azure/deploy_app.sh`
+- **Technical Issue:** On freshly provisioned VMs, `python3-venv` was missing, `/opt/multinode-pos/backend/venv` did not exist, and `multinode-pos.service` had not been created. Additionally, macOS BSD `mktemp` failed when template paths included extensions (e.g. `mktemp /tmp/file_XXXXXX.sh`).
+- **Resolution:** Updated `deploy_app.sh` to remove extension suffixes from `mktemp` calls, and added self-provisioning logic that installs `python3-venv`, creates the virtualenv, writes the production `.env`, generates the systemd service file, and reloads systemd automatically.
+- **In Plain English:** Deploying to a completely blank, new cloud machine failed because Python tools and background system services were not set up yet. We updated the deploy script so it automatically sets up all required background services, Python tools, and fixes a Mac-specific temporary file error.
+
 
 
 

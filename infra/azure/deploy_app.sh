@@ -51,7 +51,7 @@ npm --prefix frontend run build
 # ------------------------------------------------------------------------------
 echo ""
 echo "[3/6] Packaging Application Archive..."
-TEMP_ARCHIVE=$(mktemp /tmp/multinode_pos_deploy_XXXXXX.tar.gz)
+TEMP_ARCHIVE=$(mktemp /tmp/multinode_pos_deploy_XXXXXX)
 trap 'rm -f "${TEMP_ARCHIVE}"' EXIT
 
 # Package backend source code and compiled frontend dist
@@ -100,7 +100,7 @@ else
   B64_DATA=$(base64 < "${TEMP_ARCHIVE}" | tr -d '\n')
   
   # Stream base64 to target VM in chunks or write via script
-  CHUNK_FILE=$(mktemp /tmp/deploy_script_XXXXXX.sh)
+  CHUNK_FILE=$(mktemp /tmp/deploy_script_XXXXXX)
   cat << SCRIPT_EOF > "${CHUNK_FILE}"
 #!/bin/bash
 set -euo pipefail
@@ -129,7 +129,7 @@ echo "✓ Application files successfully synchronized to ${REMOTE_APP_DIR}."
 # ------------------------------------------------------------------------------
 echo ""
 echo "[5/6] Updating Virtualenv & Restarting Systemd Service..."
-RESTART_SCRIPT=$(mktemp /tmp/restart_pos_XXXXXX.sh)
+RESTART_SCRIPT=$(mktemp /tmp/restart_pos_XXXXXX)
 cat << 'SERVICE_EOF' > "${RESTART_SCRIPT}"
 #!/bin/bash
 set -euo pipefail
