@@ -36,7 +36,7 @@ MultiNode POS is an enterprise-grade, distributed Point-of-Sale (POS) transactio
 ```
 
 - **High-Availability Multi-Master Clustering**: 3-Node peer-to-peer synchronous Galera Cluster (`wsrep`) on a dedicated Azure Virtual Network (`10.0.1.0/24`). Zero replication lag enforced via `wsrep_sync_wait = 7`, eliminating stale reads across all nodes.
-- **ACID Transaction Management**: Multi-statement transactional checkout engine with row-level stock reservation (`sp_reserve_stock`), automatic compensating rollback (`sp_release_stock`), and atomic inventory protection.
+- **ACID Transaction Management**: Multi-statement transactional checkout engine with row-level stock verification (`trig_OrderLineInventoryInsert`), automatic rollback on `SIGNAL SQLSTATE '45000'`, and atomic order calculation routines (`proc_FillOrderTotal`).
 - **Relational Data Engine & Staging ETL**: Fully normalized 3NF schema, automated data cleansing (`STR_TO_DATE`, decimal zero-fill padding, currency stripping), virtual generated columns (`LineTotal = Quantity * UnitPrice`), stored procedures, real-time audit triggers, and materialized views.
 - **Polyglot Persistence & NoSQL Analytics**: Denormalized JSON Lines data pipelines (`cust1.json`, `prod.json`, `ord.json`, `cust2.json`) loaded into MongoDB collections for high-performance aggregations, Customer Lifetime Value (CLV) analysis, fraud detection, and product recall tracing.
 - **Application Security & SQL Injection Playground**: Production-ready parameterized query filters using positional `%s` placeholders, paired with an interactive comparison playground demonstrating CWE-89 vulnerability remediation.
