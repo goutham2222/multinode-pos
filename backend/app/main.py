@@ -39,6 +39,7 @@ app.include_router(analytics_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/health")
+@app.get("/api/v1/health")
 def health_check():
     return {
         "status": "healthy",
@@ -48,8 +49,12 @@ def health_check():
     }
 
 
-# Mount Static Frontend if built
+# Mount Static Frontend if built (supports frontend/dist or app/static)
 FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend/dist")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+if not os.path.isdir(FRONTEND_DIST) and os.path.isdir(STATIC_DIR):
+    FRONTEND_DIST = STATIC_DIR
 
 if os.path.isdir(FRONTEND_DIST):
     # Mount assets directory
@@ -57,10 +62,14 @@ if os.path.isdir(FRONTEND_DIST):
     if os.path.isdir(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # Allow API calls to pass through
-        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json") or full_path.startswith("health"):
             return None
         file_path = os.path.join(FRONTEND_DIST, full_path)
         if os.path.isfile(file_path):
