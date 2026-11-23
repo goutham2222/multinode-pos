@@ -3,14 +3,14 @@
 MultiNode POS: Automated NoSQL Verification & Analytics Test Runner
 File: database/07_nosql/verify_nosql.py
 
-Validates the JSON Milestone and MongoDB Milestone deliverables:
+Validates the NoSQL Document and MongoDB Analytics deliverables:
   1. Validates file existence and JSON Lines syntax for all 4 exported files.
-  2. Asserts structural schema compliance against the course rubrics:
+  2. Asserts structural schema compliance against the production specification:
      - cust1.json: Customer Name, Address with \n, omitted Address2 when NULL.
      - prod.json: ProductID, Name, CurrentPrice, Customers array.
      - ord.json: OrderID, Order Total, buyer object, product object, quantity.
      - cust2.json: Demographic fields + orders array with nested items array.
-  3. Executes the 6 required MongoDB Milestone business queries (Q6-Q11)
+  3. Executes the 6 required business analytics queries (Q6-Q11)
      directly against the in-memory document dataset.
 """
 
@@ -205,7 +205,7 @@ def main():
 
     # Detailed assertion tests
     print("\n" + "=" * 75)
-    print("TEST SUITE 1.2: ADVANCED RUBRIC SPECIFICATION ASSERTIONS")
+    print("TEST SUITE 1.2: ADVANCED SCHEMA SPECIFICATION ASSERTIONS")
     print("=" * 75)
     # Check Address newline and Address2 null handling
     sample_cust = cust1[0]

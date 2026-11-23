@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 02_provision_primary_vm.sh
-# Purpose: Provision Primary VM (Node 1) on Azure for Students
+# Purpose: Provision Primary VM (Node 1) on Azure
 # Configuration: Standard_B1s (1 vCPU, 1 GiB RAM), Ubuntu 22.04 LTS, Static Private IP 10.0.1.4
 # ==============================================================================
 set -euo pipefail
@@ -22,7 +22,7 @@ SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa.pub}"
 echo "=================================================================="
 echo "MultiNode POS: Provisioning Primary VM ($VM_NAME)"
 echo "Resource Group: $RESOURCE_GROUP"
-echo "VM Sizing:      $VM_SIZE (Azure for Students Tier)"
+echo "VM Sizing:      $VM_SIZE (Standard Cloud Tier)"
 echo "Assigned IP:    $PRIVATE_IP"
 echo "Admin User:     $ADMIN_USERNAME"
 echo "SSH Key Path:   $SSH_KEY_PATH"

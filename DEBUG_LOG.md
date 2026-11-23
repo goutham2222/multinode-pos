@@ -9,7 +9,7 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 ### [ERR-001] Azure VM Provisioning Capacity Restriction (SkuNotAvailable) in eastus
 - **Timestamp:** 2026-10-30 / Phase 1 (Azure Provisioning)
 - **Component:** `infra/azure/01_network_setup.sh`, `infra/azure/02_provision_primary_vm.sh`, `infra/azure/03_provision_galera_peers.sh`
-- **Technical Issue:** `az vm create` failed with `(SkuNotAvailable) The requested VM size for resource 'Following SKUs have failed for Capacity Restrictions: Standard_B1s' is currently not available in location 'eastus'`. Azure's East US data center experienced compute capacity exhaustion for the student/free-tier burstable `Standard_B1s` VM SKU.
+- **Technical Issue:** `az vm create` failed with `(SkuNotAvailable) The requested VM size for resource 'Following SKUs have failed for Capacity Restrictions: Standard_B1s' is currently not available in location 'eastus'`. Azure's East US data center experienced compute capacity exhaustion for the standard burstable `Standard_B1s` VM SKU.
 - **Resolution:** Created `infra/azure/check_available_regions.sh` to dynamically query unrestricted regions for `Standard_B1s` in the user's active subscription. Updated Azure provisioning scripts to support parameterized `LOCATION` (e.g. `eastus2`, `centralus`, `southcentralus`) and provided cleanup/re-deployment guidance.
 - **In Plain English:** Azure ran out of B1s machines in the `eastus` region. We added a script to check which Azure regions currently have B1s machines available and updated the setup scripts so you can deploy to an available region (such as East US 2 or Central US) without losing your free tier benefits.
 
@@ -48,12 +48,12 @@ This document serves as the permanent record of all bugs, syntax issues, compile
 - **Resolution:** Replaced the associative array with a POSIX-compliant string list and standard parameter expansion (`${item%%:*}` and `${item##*:}`) compatible with Bash 3.2+, Zsh, and modern Linux shells.
 - **In Plain English:** macOS uses an older version of Bash that doesn't support dictionary arrays. We rewritten the loop syntax so the peer provisioning script works reliably on macOS without needing to upgrade system Bash.
 
-### [ERR-007] Azure for Students Regional Core Quota Exceeded for standardDASv4Family
+### [ERR-007] Azure Regional Core Quota Exceeded for standardDASv4Family
 - **Timestamp:** 2026-11-18 / Phase 6 (Galera Clustering)
 - **Component:** `infra/azure/03_provision_galera_peers.sh`
-- **Technical Issue:** Provisioning `vm-pos-node3` failed with `(QuotaExceeded) Operation could not be completed as it results in exceeding approved standardDASv4Family Cores quota. Location: eastus, Current Limit: 4, Current Usage: 4, Additional Required: 2`. Azure for Students limits subscriptions to 4 vCPUs per specific VM family in a single region. Because Node 1 and Node 2 each use 2 vCPUs of `standardDASv4Family` (`Standard_D2as_v4`), deploying Node 3 with the same size requested 6 cores, breaching the limit.
+- **Technical Issue:** Provisioning `vm-pos-node3` failed with `(QuotaExceeded) Operation could not be completed as it results in exceeding approved standardDASv4Family Cores quota. Location: eastus, Current Limit: 4, Current Usage: 4, Additional Required: 2`. Default Azure regional subscriptions limit compute quotas to 4 vCPUs per specific VM family in a single region. Because Node 1 and Node 2 each use 2 vCPUs of `standardDASv4Family` (`Standard_D2as_v4`), deploying Node 3 with the same size requested 6 cores, breaching the limit.
 - **Resolution:** Updated `03_provision_galera_peers.sh` to allow per-node VM sizing. Set Node 3 to `Standard_D2s_v4` (Intel Xeon, 2 vCPU, 8 GB RAM, `standardDSv4Family`), which has 0/4 cores currently used in `eastus`. Made the script idempotent so it automatically skips already-running peer nodes (`vm-pos-node2`).
-- **In Plain English:** Azure for Students limits each VM family to 4 cores. Node 1 and Node 2 used all 4 cores of the AMD family (`D2as_v4`). We assigned Node 3 to the identical Intel family (`D2s_v4`), which has a separate 4-core allowance, letting all 3 nodes run with 2 vCPUs and 8 GB RAM.
+- **In Plain English:** Azure subscription limits each VM family to 4 cores. Node 1 and Node 2 used all 4 cores of the AMD family (`D2as_v4`). We assigned Node 3 to the identical Intel family (`D2s_v4`), which has a separate 4-core allowance, letting all 3 nodes run with 2 vCPUs and 8 GB RAM.
 
 ### [ERR-008] Unescaped Dollar Sign in test_multimaster.sh String
 - **Timestamp:** 2026-11-18 / Phase 6 (Galera Clustering)

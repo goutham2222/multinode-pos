@@ -3,7 +3,7 @@
 # MultiNode POS: Comprehensive Automated Test Suite Runner
 # File: scripts/run_automated_tests.sh
 # Purpose: Orchestrates backend unit/integration tests, frontend build/types,
-#          and Phase 8 NoSQL milestone validation for local verification & CI/CD.
+#          and NoSQL document validation for local verification & CI/CD.
 # ==============================================================================
 set -euo pipefail
 
@@ -54,17 +54,17 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# Test Suite 3: Phase 8 NoSQL Milestone Document & Analytics Validation
+# Test Suite 3: NoSQL Document Schema & Analytics Validation
 # ------------------------------------------------------------------------------
 echo ""
 echo "--------------------------------------------------------------------------------"
-echo "[3/3] Running NoSQL Milestone Schema & Business Query Verification..."
+echo "[3/3] Running NoSQL Schema & Business Analytics Verification..."
 echo "--------------------------------------------------------------------------------"
 if "${PYTHON_BIN}" database/07_nosql/verify_nosql.py; then
-  echo "✓ Test Suite 3 (NoSQL Milestone): PASSED"
+  echo "✓ Test Suite 3 (NoSQL Verification): PASSED"
 else
-  echo "✗ Test Suite 3 (NoSQL Milestone): FAILED"
-  FAILED_SUITES+=("NoSQL Milestone")
+  echo "✗ Test Suite 3 (NoSQL Verification): FAILED"
+  FAILED_SUITES+=("NoSQL Verification")
 fi
 
 # ------------------------------------------------------------------------------

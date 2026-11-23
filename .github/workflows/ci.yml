@@ -46,6 +46,6 @@ jobs:
           npm --prefix frontend ci || npm --prefix frontend install
           npm --prefix frontend run build
 
-      - name: Verify NoSQL Milestone Datasets & Queries
+      - name: Verify NoSQL Datasets & Queries
         run: |
           python3 database/07_nosql/verify_nosql.py

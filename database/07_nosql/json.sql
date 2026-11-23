@@ -1,9 +1,9 @@
 -- ==============================================================================
--- Student Name: Goutham
--- Course: Distributed Database Systems & Architecture
--- Assignment: JSON Milestone - Relational to NoSQL Document Extraction
--- Attestation: I declare that this assignment is my own work in accordance with
---              the academic integrity policy.
+-- MultiNode POS: Distributed Transactional & Analytical Engine
+-- Relational to Denormalized NoSQL Document Extraction Pipeline
+-- Author: Goutham
+-- System: MariaDB 10.11+ / MongoDB JSON Lines Pipeline
+-- Purpose: Denormalized document extraction for analytical processing
 -- ==============================================================================
 
 source trig.sql;
@@ -11,7 +11,7 @@ source trig.sql;
 USE `pos`;
 
 -- ------------------------------------------------------------------------------
--- Milestone Overview & Execution Notes:
+-- Extraction Pipeline Overview & Execution Notes:
 -- This script transforms normalized relational data from the MultiNode POS
 -- schema into four denormalized JSON document streams formatted as JSON Lines
 -- (one valid JSON object per row, without separating commas between root objects)

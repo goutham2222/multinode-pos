@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * MultiNode POS: Phase 8 - MongoDB Milestone Analytics Suite
+ * MultiNode POS: MongoDB Business Analytics Suite
  * Target DBMS: MongoDB 6.0+ / mongosh
  * Database: pos
  * File: database/07_nosql/mongo_analytics.js
@@ -35,7 +35,7 @@ const dbName = "pos";
 const db = connect(`mongodb://localhost:27017/${dbName}`);
 
 print("================================================================================");
-print("MultiNode POS: MongoDB Milestone Business Analytics Suite");
+print("MultiNode POS: MongoDB Business Analytics Suite");
 print("Database: " + dbName);
 print("================================================================================");
 

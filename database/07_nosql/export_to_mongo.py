@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-MultiNode POS: Phase 8 - Automated MariaDB to MongoDB Exporter
+MultiNode POS: Automated MariaDB to MongoDB Exporter
 File: database/07_nosql/export_to_mongo.py
 
-Extracts the four standardized JSON document aggregates required by the
-JSON Milestone and MongoDB Milestone:
+Extracts the four standardized JSON document aggregates:
   1. cust1.json  -> MongoDB collection: Customers
   2. prod.json   -> MongoDB collection: Products
   3. ord.json    -> MongoDB collection: Orders
@@ -157,7 +156,7 @@ def export_file(conn, filename, query, limit=None):
 
 def run_export(host="20.169.214.104", limit=None):
     print("=" * 70)
-    print("MultiNode POS: NoSQL Milestone Document Exporter")
+    print("MultiNode POS: NoSQL Document Exporter")
     print(f"MariaDB Host:     {host}")
     print(f"Output Directory: {EXPORT_DIR}")
     print(f"Sample Limit:     {limit if limit else 'None (Full Export)'}")
@@ -181,7 +180,7 @@ def run_export(host="20.169.214.104", limit=None):
         conn.close()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export MariaDB relational tables to JSON Milestone files")
+    parser = argparse.ArgumentParser(description="Export MariaDB relational tables to NoSQL JSON Lines files")
     parser.add_argument("--host", default="20.169.214.104", help="MariaDB host IP")
     parser.add_argument("--limit", type=int, default=None, help="Optional record limit for testing")
     args = parser.parse_args()

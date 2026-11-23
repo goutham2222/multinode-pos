@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: check_available_regions.sh
 # Purpose: Find ALL available 1-vCPU and 2-vCPU VM sizes in eastus and other
-#          common regions for this specific Azure for Students subscription.
+#          common regions for this specific Azure subscription.
 # ==============================================================================
 set -euo pipefail
 
@@ -51,7 +51,7 @@ for region in REGIONS:
         vcpus = caps.get("vCPUs")
         mem_gb = caps.get("MemoryGB")
         
-        # Look for 1 or 2 vCPUs (cost-effective for student tier)
+        # Look for 1 or 2 vCPUs (cost-effective tier)
         if vcpus in ["1", "2"]:
             name = s.get("name")
             available_skus.append((name, vcpus, mem_gb))

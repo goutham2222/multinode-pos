@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 01_network_setup.sh
 # Purpose: Provision Resource Group, VNet, Subnet, and NSG Rules on Azure
-# Constraints: Azure for Students (B1s VM tier, VNet peering/internal routing)
+# Constraints: Standard Azure Subscription (B1s VM tier, VNet peering/internal routing)
 # ==============================================================================
 set -euo pipefail
 

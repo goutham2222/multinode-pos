@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: check_node3_size.sh
 # Purpose: Check available 2-vCPU VM sizes from other families in eastus
-#          that have 0/4 cores used for this Azure for Students subscription.
+#          that have 0/4 cores used for this Azure subscription.
 # ==============================================================================
 set -euo pipefail
 
