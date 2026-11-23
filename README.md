@@ -354,10 +354,12 @@ ssh azureuser@<NODE3_IP> "bash ~/host_setup.sh"
 scp -r database azureuser@<NODE1_IP>:~/
 ssh azureuser@<NODE1_IP> "bash ~/database/06_cluster/bootstrap_node1.sh"
 
-scp -r database azureuser@<NODE2_IP>:~/
+ssh azureuser@<NODE2_IP> "mkdir -p ~/database"
+scp -r database/06_cluster azureuser@<NODE2_IP>:~/database/
 ssh azureuser@<NODE2_IP> "bash ~/database/06_cluster/join_peer.sh 2"
 
-scp -r database azureuser@<NODE3_IP>:~/
+ssh azureuser@<NODE3_IP> "mkdir -p ~/database"
+scp -r database/06_cluster azureuser@<NODE3_IP>:~/database/
 ssh azureuser@<NODE3_IP> "bash ~/database/06_cluster/join_peer.sh 3"
 
 # 7. Enable Causal Consistency & Run Multi-Master Replication Test
